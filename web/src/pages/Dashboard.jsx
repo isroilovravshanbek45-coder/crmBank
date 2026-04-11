@@ -56,7 +56,8 @@ const Dashboard = ({ onLogout }) => {
       // Yangi mijoz qo'shish
       const newClient = {
         id: clients.length + 1,
-        ...formData
+        ...formData,
+        createdAt: new Date().toISOString()
       };
       setClients([...clients, newClient]);
     }

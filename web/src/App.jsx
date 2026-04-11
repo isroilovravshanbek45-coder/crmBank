@@ -1,15 +1,27 @@
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import LoginPage from './pages/LoginPage';
 import Dashboard from './pages/Dashboard';
+import AdminLogin from './pages/admin/AdminLogin';
+import AdminDashboard from './pages/admin/AdminDashboard';
+
+// Protected Route komponentlari
+const ProtectedRoute = ({ children }) => {
+  const isLoggedIn = localStorage.getItem('bankCrmIsLoggedIn') === 'true';
+  return isLoggedIn ? children : <Navigate to="/" />;
+};
+
+const AdminProtectedRoute = ({ children }) => {
+  const isAdminLoggedIn = localStorage.getItem('bankCrmAdminLoggedIn') === 'true';
+  return isAdminLoggedIn ? children : <Navigate to="/admin/login" />;
+};
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(() => {
-    // LocalStorage dan login holatini yuklash
     const savedLoginState = localStorage.getItem('bankCrmIsLoggedIn');
     return savedLoginState === 'true';
   });
 
-  // Login holati o'zgarganda LocalStorage ga saqlash
   useEffect(() => {
     localStorage.setItem('bankCrmIsLoggedIn', isLoggedIn);
   }, [isLoggedIn]);
@@ -20,16 +32,41 @@ function App() {
 
   const handleLogout = () => {
     setIsLoggedIn(false);
+    localStorage.removeItem('bankCrmIsLoggedIn');
   };
 
   return (
-    <>
-      {isLoggedIn ? (
-        <Dashboard onLogout={handleLogout} />
-      ) : (
-        <LoginPage onLogin={handleLogin} />
-      )}
-    </>
+    <Router>
+      <Routes>
+        {/* CRM Routes */}
+        <Route
+          path="/"
+          element={isLoggedIn ? <Navigate to="/dashboard" /> : <LoginPage onLogin={handleLogin} />}
+        />
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute>
+              <Dashboard onLogout={handleLogout} />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Admin Routes */}
+        <Route path="/admin/login" element={<AdminLogin />} />
+        <Route
+          path="/admin"
+          element={
+            <AdminProtectedRoute>
+              <AdminDashboard />
+            </AdminProtectedRoute>
+          }
+        />
+
+        {/* Redirect noma'lum yo'llar uchun */}
+        <Route path="*" element={<Navigate to="/" />} />
+      </Routes>
+    </Router>
   );
 }
 
