@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm create vite@latest . -- --template react)",
+      "Bash(npm install)",
+      "Bash(pnpm install)",
+      "Bash(if not exist \"src\\pages\" mkdir \"src\\pages\")",
+      "Bash(dir /b /a)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

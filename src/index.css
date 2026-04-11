@@ -1,0 +1,35 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Placeholder rangini o'zgartirish */
+input::placeholder {
+  color: #9ca3af; /* gray-400 */
+  opacity: 1;
+}
+
+input::-webkit-input-placeholder {
+  color: #9ca3af;
+  opacity: 1;
+}
+
+input::-moz-placeholder {
+  color: #9ca3af;
+  opacity: 1;
+}
+
+input:-ms-input-placeholder {
+  color: #9ca3af;
+  opacity: 1;
+}
+
+/* Autocomplete fon rangini o'zgartirish */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 30px white inset !important;
+  -webkit-text-fill-color: #111827 !important;
+  box-shadow: 0 0 0 30px white inset !important;
+  transition: background-color 5000s ease-in-out 0s;
+}
