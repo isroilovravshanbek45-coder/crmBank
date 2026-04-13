@@ -10,8 +10,13 @@ const LoginPage = ({ onLogin }) => {
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    // Login va parolni tekshirish
-    if (formData.login === 'admin' && formData.password === '1234') {
+    // Login va parolni tekshirish (operator raqami login sifatida ishlatiladi)
+    const operatorNumber = formData.login;
+    const validOperators = ['401', '402', '403', '404', '405', '406', '407', '408', '409', '410'];
+
+    if (validOperators.includes(operatorNumber) && formData.password === '1234') {
+      // Operator raqamini localStorage ga saqlash
+      localStorage.setItem('bankCrmOperatorId', operatorNumber);
       onLogin(); // Dashboard ga o'tish
     } else {
       alert('Login yoki parol xato!');

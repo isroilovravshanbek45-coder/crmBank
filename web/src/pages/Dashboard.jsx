@@ -1,7 +1,11 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 const Dashboard = ({ onLogout }) => {
+  const navigate = useNavigate();
+  const [allClients, setAllClients] = useState([]);
   const [clients, setClients] = useState([]);
+  const operatorId = localStorage.getItem('bankCrmOperatorId') || '401';
   const [formData, setFormData] = useState({
     ism: '',
     familya: '',
@@ -9,7 +13,7 @@ const Dashboard = ({ onLogout }) => {
     hudud: '',
     garov: '',
     summa: '',
-    operatorRaqam: '401',
+    operatorRaqam: localStorage.getItem('bankCrmOperatorId') || '401',
     status: 'Jarayonda',
     comment: ''
   });
@@ -21,19 +25,23 @@ const Dashboard = ({ onLogout }) => {
     const savedClients = localStorage.getItem('bankCrmClients');
     if (savedClients) {
       try {
-        setClients(JSON.parse(savedClients));
+        const allClientsData = JSON.parse(savedClients);
+        setAllClients(allClientsData);
+        // Faqat o'sha operatorning mijozlarini filtrlash
+        const operatorClients = allClientsData.filter(client => client.operatorRaqam === operatorId);
+        setClients(operatorClients);
       } catch (error) {
         console.error('LocalStorage dan ma\'lumot yuklashda xatolik:', error);
       }
     }
-  }, []);
+  }, [operatorId]);
 
-  // Clients o'zgarganda LocalStorage ga saqlash
+  // AllClients o'zgarganda LocalStorage ga saqlash
   useEffect(() => {
-    if (clients.length > 0) {
-      localStorage.setItem('bankCrmClients', JSON.stringify(clients));
+    if (allClients.length > 0) {
+      localStorage.setItem('bankCrmClients', JSON.stringify(allClients));
     }
-  }, [clients]);
+  }, [allClients]);
 
   const handleChange = (e) => {
     setFormData({
@@ -47,19 +55,24 @@ const Dashboard = ({ onLogout }) => {
 
     if (isEditing) {
       // Tahrirlash rejimi
-      setClients(clients.map(client =>
+      const updatedAllClients = allClients.map(client =>
         client.id === editingId ? { ...formData, id: editingId } : client
-      ));
+      );
+      setAllClients(updatedAllClients);
+      setClients(updatedAllClients.filter(client => client.operatorRaqam === operatorId));
       setIsEditing(false);
       setEditingId(null);
     } else {
       // Yangi mijoz qo'shish
       const newClient = {
-        id: clients.length + 1,
+        id: allClients.length > 0 ? Math.max(...allClients.map(c => c.id)) + 1 : 1,
         ...formData,
+        operatorRaqam: operatorId, // Avtomatik o'sha operatorni o'rnatish
         createdAt: new Date().toISOString()
       };
-      setClients([...clients, newClient]);
+      const updatedAllClients = [...allClients, newClient];
+      setAllClients(updatedAllClients);
+      setClients(updatedAllClients.filter(client => client.operatorRaqam === operatorId));
     }
 
     // Formani tozalash
@@ -70,7 +83,7 @@ const Dashboard = ({ onLogout }) => {
       hudud: '',
       garov: '',
       summa: '',
-      operatorRaqam: '401',
+      operatorRaqam: operatorId,
       status: 'Jarayonda',
       comment: ''
     });
@@ -104,7 +117,7 @@ const Dashboard = ({ onLogout }) => {
       hudud: '',
       garov: '',
       summa: '',
-      operatorRaqam: '401',
+      operatorRaqam: operatorId,
       status: 'Jarayonda',
       comment: ''
     });
@@ -214,7 +227,7 @@ const Dashboard = ({ onLogout }) => {
               />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
               <input
                 type="number"
                 name="summa"
@@ -224,23 +237,6 @@ const Dashboard = ({ onLogout }) => {
                 className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
                 required
               />
-              <select
-                name="operatorRaqam"
-                value={formData.operatorRaqam}
-                onChange={handleChange}
-                className="px-4 py-2 pr-8 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none appearance-none bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTIiIGhlaWdodD0iOCIgdmlld0JveD0iMCAwIDEyIDgiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHBhdGggZD0iTTEgMUw2IDZMMTEgMSIgc3Ryb2tlPSIjNkI3MjgwIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPjwvc3ZnPg==')] bg-[center_right_0.5rem] bg-no-repeat"
-              >
-                <option value="401">401</option>
-                <option value="402">402</option>
-                <option value="403">403</option>
-                <option value="404">404</option>
-                <option value="405">405</option>
-                <option value="406">406</option>
-                <option value="407">407</option>
-                <option value="408">408</option>
-                <option value="409">409</option>
-                <option value="410">410</option>
-              </select>
               <select
                 name="status"
                 value={formData.status}
@@ -294,7 +290,6 @@ const Dashboard = ({ onLogout }) => {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Hudud</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Garov</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Summa</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Operator</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Status</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Izoh</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Amallar</th>
@@ -303,13 +298,13 @@ const Dashboard = ({ onLogout }) => {
               <tbody className="bg-white divide-y divide-gray-200">
                 {clients.length === 0 ? (
                   <tr>
-                    <td colSpan="11" className="px-6 py-8 text-center text-gray-500">
+                    <td colSpan="10" className="px-6 py-8 text-center text-gray-500">
                       Hozircha mijozlar yo'q
                     </td>
                   </tr>
                 ) : (
                   clients.map((client) => (
-                    <tr key={client.id} className="hover:bg-gray-50 transition">
+                    <tr key={client.id} className="hover:bg-gray-50 transition cursor-pointer" onClick={() => navigate(`/client/${client.id}`)}>
                       <td className="px-6 py-4 text-sm text-gray-900">{client.id}</td>
                       <td className="px-6 py-4 text-sm text-gray-900">{client.ism}</td>
                       <td className="px-6 py-4 text-sm text-gray-900">{client.familya}</td>
@@ -317,7 +312,6 @@ const Dashboard = ({ onLogout }) => {
                       <td className="px-6 py-4 text-sm text-gray-900">{client.hudud}</td>
                       <td className="px-6 py-4 text-sm text-gray-900">{client.garov}</td>
                       <td className="px-6 py-4 text-sm text-gray-900">{parseFloat(client.summa).toLocaleString()} UZS</td>
-                      <td className="px-6 py-4 text-sm font-semibold text-blue-600">{client.operatorRaqam}</td>
                       <td className="px-6 py-4 text-sm">
                         <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
                           client.status === 'Tasdiqlangan' ? 'bg-green-100 text-green-800' :
@@ -332,7 +326,10 @@ const Dashboard = ({ onLogout }) => {
                       </td>
                       <td className="px-6 py-4 text-sm">
                         <button
-                          onClick={() => handleEdit(client)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEdit(client);
+                          }}
                           className="bg-yellow-500 text-white px-4 py-2 rounded-lg text-xs font-semibold hover:bg-yellow-600 transition"
                         >
                           Tahrirlash

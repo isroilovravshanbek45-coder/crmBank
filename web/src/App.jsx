@@ -4,6 +4,9 @@ import LoginPage from './pages/LoginPage';
 import Dashboard from './pages/Dashboard';
 import AdminLogin from './pages/admin/AdminLogin';
 import AdminDashboard from './pages/admin/AdminDashboard';
+import OperatorDetail from './pages/admin/OperatorDetail';
+import AdminClientDetail from './pages/admin/ClientDetail';
+import ClientDetail from './pages/ClientDetail';
 
 // Protected Route komponentlari
 const ProtectedRoute = ({ children }) => {
@@ -33,6 +36,7 @@ function App() {
   const handleLogout = () => {
     setIsLoggedIn(false);
     localStorage.removeItem('bankCrmIsLoggedIn');
+    localStorage.removeItem('bankCrmOperatorId'); // Operator ID ni ham o'chirish
   };
 
   return (
@@ -60,6 +64,32 @@ function App() {
             <AdminProtectedRoute>
               <AdminDashboard />
             </AdminProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/operator/:id"
+          element={
+            <AdminProtectedRoute>
+              <OperatorDetail />
+            </AdminProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/client/:id"
+          element={
+            <AdminProtectedRoute>
+              <AdminClientDetail />
+            </AdminProtectedRoute>
+          }
+        />
+
+        {/* Operator Client Detail Route */}
+        <Route
+          path="/client/:id"
+          element={
+            <ProtectedRoute>
+              <ClientDetail />
+            </ProtectedRoute>
           }
         />
 
