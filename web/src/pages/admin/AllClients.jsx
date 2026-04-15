@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import * as XLSX from 'xlsx';
 
 const AllClients = () => {
   const navigate = useNavigate();
@@ -44,52 +45,123 @@ const AllClients = () => {
     setFilteredClients(filtered);
   }, [searchTerm, filterStatus, filterOperator, allClients]);
 
-  // Excel export funksiyasi
+  // Rangli Excel export funksiyasi
   const exportToExcel = () => {
     if (filteredClients.length === 0) {
       alert('Ma\'lumot yo\'q!');
       return;
     }
 
-    // CSV formatida yaratish (Excel ochadi)
-    let csvContent = '\uFEFF'; // UTF-8 BOM
-
-    // Header
-    csvContent += 'ID,Ism,Familya,Telefon,Hudud,Garov,Summa (UZS),Operator,Status,Izoh,Yaratilgan sana\n';
-
-    // Data
-    filteredClients.forEach(client => {
+    // Ma'lumotlarni tayyorlash
+    const data = filteredClients.map(client => {
       const createdDate = client.createdAt
-        ? new Date(client.createdAt).toLocaleString('uz-UZ')
+        ? new Date(client.createdAt).toLocaleString('uz-UZ', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+          })
         : 'Noma\'lum';
 
-      csvContent += [
-        client.id,
-        `"${client.ism}"`,
-        `"${client.familya}"`,
-        client.telefon,
-        `"${client.hudud}"`,
-        `"${client.garov}"`,
-        client.summa,
-        client.operatorRaqam,
-        `"${client.status}"`,
-        `"${client.comment || ''}"`,
-        `"${createdDate}"`
-      ].join(',') + '\n';
+      return {
+        'ID': client.id,
+        'Ism': client.ism,
+        'Familya': client.familya,
+        'Telefon': client.telefon,
+        'Hudud': client.hudud,
+        'Garov': client.garov,
+        'Summa (UZS)': parseFloat(client.summa),
+        'Operator': client.operatorRaqam,
+        'Status': client.status,
+        'Izoh': client.comment || '',
+        'Yaratilgan sana': createdDate
+      };
     });
 
-    // Download qilish
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
+    // Worksheet yaratish
+    const ws = XLSX.utils.json_to_sheet(data);
 
-    link.setAttribute('href', url);
-    link.setAttribute('download', `mijozlar_${new Date().toISOString().split('T')[0]}.csv`);
-    link.style.visibility = 'hidden';
+    // Ustunlar kengligini sozlash
+    const colWidths = [
+      { wch: 8 },  // ID
+      { wch: 15 }, // Ism
+      { wch: 15 }, // Familya
+      { wch: 15 }, // Telefon
+      { wch: 15 }, // Hudud
+      { wch: 20 }, // Garov
+      { wch: 15 }, // Summa
+      { wch: 10 }, // Operator
+      { wch: 15 }, // Status
+      { wch: 30 }, // Izoh
+      { wch: 18 }  // Yaratilgan sana
+    ];
+    ws['!cols'] = colWidths;
 
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    // Header ranglarini qo'shish
+    const range = XLSX.utils.decode_range(ws['!ref']);
+
+    // Header qatorini ranglash (A1:K1)
+    for (let col = range.s.c; col <= range.e.c; col++) {
+      const cellAddress = XLSX.utils.encode_cell({ r: 0, c: col });
+      if (!ws[cellAddress]) continue;
+
+      ws[cellAddress].s = {
+        fill: {
+          fgColor: { rgb: "3B82F6" } // Ko'k rang
+        },
+        font: {
+          bold: true,
+          color: { rgb: "FFFFFF" }, // Oq matn
+          sz: 12
+        },
+        alignment: {
+          horizontal: "center",
+          vertical: "center"
+        }
+      };
+    }
+
+    // Status ustunini ranglash (I ustun)
+    for (let row = range.s.r + 1; row <= range.e.r; row++) {
+      const statusCell = ws[XLSX.utils.encode_cell({ r: row, c: 8 })]; // Status ustuni (I)
+
+      if (statusCell && statusCell.v) {
+        let fillColor = '';
+
+        if (statusCell.v === 'Tasdiqlangan') {
+          fillColor = '22C55E'; // Yashil
+        } else if (statusCell.v === 'Jarayonda') {
+          fillColor = 'F59E0B'; // Sariq
+        } else if (statusCell.v === 'Rad etilgan') {
+          fillColor = 'EF4444'; // Qizil
+        }
+
+        if (fillColor) {
+          statusCell.s = {
+            fill: {
+              fgColor: { rgb: fillColor }
+            },
+            font: {
+              color: { rgb: "FFFFFF" }, // Oq matn
+              bold: true
+            },
+            alignment: {
+              horizontal: "center",
+              vertical: "center"
+            }
+          };
+        }
+      }
+    }
+
+    // Workbook yaratish
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Mijozlar');
+
+    // Faylni yuklab olish
+    const fileName = `mijozlar_${new Date().toISOString().split('T')[0]}.xlsx`;
+    XLSX.writeFile(wb, fileName);
   };
 
   const getUniqueOperators = () => {
@@ -254,9 +326,15 @@ const AllClients = () => {
                           {client.status}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-600">
+                      <td className="px-6 py-4 text-sm text-gray-600 whitespace-nowrap">
                         {client.createdAt
-                          ? new Date(client.createdAt).toLocaleDateString('uz-UZ')
+                          ? new Date(client.createdAt).toLocaleString('uz-UZ', {
+                              day: '2-digit',
+                              month: '2-digit',
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })
                           : '-'
                         }
                       </td>

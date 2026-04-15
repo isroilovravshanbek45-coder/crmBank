@@ -43,20 +43,21 @@ const AdminDashboard = () => {
 
   const calculateStats = (clientsData) => {
     const total = clientsData.length;
-    const totalAmount = clientsData.reduce((sum, c) => sum + (parseFloat(c.summa) || 0), 0);
+    const totalAmount = clientsData.filter(c => c.summa).reduce((sum, c) => sum + (parseFloat(c.summa) || 0), 0);
     const approved = clientsData.filter(c => c.status === 'Tasdiqlangan').length;
     const pending = clientsData.filter(c => c.status === 'Jarayonda').length;
     const rejected = clientsData.filter(c => c.status === 'Rad etilgan').length;
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000);
     const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
     const monthAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
 
     const todayClients = clientsData.filter(c => {
       if (!c.createdAt) return false;
       const createdDate = new Date(c.createdAt);
-      return createdDate >= today;
+      return createdDate >= today && createdDate < tomorrow;
     }).length;
 
     const thisWeekClients = clientsData.filter(c => {
@@ -117,8 +118,9 @@ const AdminDashboard = () => {
   };
 
   const getFilteredClients = () => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000);
     const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
     const monthAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
 
@@ -126,7 +128,8 @@ const AdminDashboard = () => {
       case 'today':
         return clients.filter(c => {
           if (!c.createdAt) return false;
-          return new Date(c.createdAt) >= today;
+          const createdDate = new Date(c.createdAt);
+          return createdDate >= today && createdDate < tomorrow;
         });
       case 'week':
         return clients.filter(c => {
@@ -144,6 +147,51 @@ const AdminDashboard = () => {
   };
 
   const filteredClients = getFilteredClients();
+
+  // Tanlangan davr bo'yicha statistika
+  const getPeriodStats = () => {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000);
+    const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const monthAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+    let periodClients = [];
+
+    switch(selectedPeriod) {
+      case 'today':
+        periodClients = clients.filter(c => {
+          if (!c.createdAt) return false;
+          const createdDate = new Date(c.createdAt);
+          return createdDate >= today && createdDate < tomorrow;
+        });
+        break;
+      case 'week':
+        periodClients = clients.filter(c => {
+          if (!c.createdAt) return false;
+          return new Date(c.createdAt) >= weekAgo;
+        });
+        break;
+      case 'month':
+        periodClients = clients.filter(c => {
+          if (!c.createdAt) return false;
+          return new Date(c.createdAt) >= monthAgo;
+        });
+        break;
+      default:
+        periodClients = clients;
+    }
+
+    return {
+      total: periodClients.length,
+      approved: periodClients.filter(c => c.status === 'Tasdiqlangan').length,
+      pending: periodClients.filter(c => c.status === 'Jarayonda').length,
+      rejected: periodClients.filter(c => c.status === 'Rad etilgan').length,
+      totalAmount: periodClients.reduce((sum, c) => sum + (parseFloat(c.summa) || 0), 0)
+    };
+  };
+
+  const periodStats = getPeriodStats();
 
   const getTopOperators = () => {
     return operators
@@ -172,6 +220,19 @@ const AdminDashboard = () => {
 
   const topOperators = getTopOperators();
 
+  // Oxirgi 24 soatlik mijozlar
+  const getLast24HoursClients = () => {
+    const now = new Date();
+    const last24Hours = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+
+    return clients.filter(c => {
+      if (!c.createdAt) return false;
+      const createdDate = new Date(c.createdAt);
+      return createdDate >= last24Hours;
+    });
+  };
+
+  const last24HoursClients = getLast24HoursClients();
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -304,45 +365,68 @@ const AdminDashboard = () => {
               ))}
             </div>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            {/* Jami mijozlar */}
             <div className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 rounded-lg flex items-center justify-center" style={{backgroundColor: '#DBEAFE'}}>
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{color: '#3B82F6'}}>
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                   </svg>
                 </div>
                 <div>
-                  <p className="text-xs font-medium text-gray-600">Bugungi mijozlar</p>
-                  <p className="text-2xl font-bold text-gray-900 mt-0.5">{stats.todayClients}</p>
+                  <p className="text-xs font-medium text-gray-600">
+                    {selectedPeriod === 'all' && 'Jami mijozlar'}
+                    {selectedPeriod === 'today' && 'Bugungi mijozlar'}
+                    {selectedPeriod === 'week' && 'Bu haftadagi mijozlar'}
+                    {selectedPeriod === 'month' && 'Bu oydagi mijozlar'}
+                  </p>
+                  <p className="text-2xl font-bold text-gray-900 mt-0.5">{periodStats.total}</p>
                 </div>
               </div>
             </div>
 
+            {/* Tasdiqlangan */}
             <div className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-lg flex items-center justify-center" style={{backgroundColor: '#DBEAFE'}}>
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{color: '#3B82F6'}}>
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                <div className="w-12 h-12 rounded-lg flex items-center justify-center" style={{backgroundColor: '#D1FAE5'}}>
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{color: '#22C55E'}}>
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </div>
                 <div>
-                  <p className="text-xs font-medium text-gray-600">Bu hafta</p>
-                  <p className="text-2xl font-bold text-gray-900 mt-0.5">{stats.thisWeekClients}</p>
+                  <p className="text-xs font-medium text-gray-600">Tasdiqlangan</p>
+                  <p className="text-2xl font-bold" style={{color: '#22C55E'}}>{periodStats.approved}</p>
                 </div>
               </div>
             </div>
 
+            {/* Jarayonda */}
             <div className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-lg flex items-center justify-center" style={{backgroundColor: '#DBEAFE'}}>
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{color: '#3B82F6'}}>
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                <div className="w-12 h-12 rounded-lg flex items-center justify-center" style={{backgroundColor: '#FEF3C7'}}>
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{color: '#F59E0B'}}>
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </div>
                 <div>
-                  <p className="text-xs font-medium text-gray-600">Bu oy</p>
-                  <p className="text-2xl font-bold text-gray-900 mt-0.5">{stats.thisMonthClients}</p>
+                  <p className="text-xs font-medium text-gray-600">Jarayonda</p>
+                  <p className="text-2xl font-bold" style={{color: '#F59E0B'}}>{periodStats.pending}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Rad etilgan */}
+            <div className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-lg flex items-center justify-center" style={{backgroundColor: '#FEE2E2'}}>
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{color: '#EF4444'}}>
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-gray-600">Rad etilgan</p>
+                  <p className="text-2xl font-bold" style={{color: '#EF4444'}}>{periodStats.rejected}</p>
                 </div>
               </div>
             </div>
@@ -467,10 +551,13 @@ const AdminDashboard = () => {
           </div>
         </div>
 
-        {/* Recent Clients */}
+        {/* Recent Clients - Last 24 Hours */}
         <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
           <div className="px-6 py-5 border-b border-gray-200 flex items-center justify-between">
-            <h2 className="text-lg font-bold text-gray-900">Oxirgi mijozlar ({filteredClients.length})</h2>
+            <div>
+              <h2 className="text-lg font-bold text-gray-900">Oxirgi 24 soatlik mijozlar</h2>
+              <p className="text-xs text-gray-500 mt-1">Jami: {last24HoursClients.length} ta mijoz</p>
+            </div>
             <button
               onClick={() => navigate('/admin/clients')}
               className="px-4 py-2 text-white rounded-lg text-sm font-medium transition-colors"
@@ -491,10 +578,11 @@ const AdminDashboard = () => {
                   <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Summa</th>
                   <th className="px-6 py-4 text-center text-xs font-bold text-gray-700 uppercase tracking-wider">Operator</th>
                   <th className="px-6 py-4 text-center text-xs font-bold text-gray-700 uppercase tracking-wider">Status</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Qo'shilgan vaqt</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {filteredClients.slice(-10).reverse().map((client) => (
+                {last24HoursClients.slice(-10).reverse().map((client) => (
                   <tr key={client.id} className="hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => navigate(`/admin/client/${client.id}`)}>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
@@ -527,18 +615,30 @@ const AdminDashboard = () => {
                         {client.status}
                       </span>
                     </td>
+                    <td className="px-6 py-4 text-sm text-gray-600">
+                      {client.createdAt
+                        ? new Date(client.createdAt).toLocaleString('uz-UZ', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })
+                        : '-'
+                      }
+                    </td>
                   </tr>
                 ))}
-                {filteredClients.length === 0 && (
+                {last24HoursClients.length === 0 && (
                   <tr>
-                    <td colSpan="6" className="px-6 py-16 text-center">
+                    <td colSpan="7" className="px-6 py-16 text-center">
                       <div className="flex flex-col items-center gap-3">
                         <div className="w-20 h-20 rounded-full bg-gray-100 flex items-center justify-center">
                           <svg className="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
                           </svg>
                         </div>
-                        <p className="text-gray-500 font-medium">Hozircha mijozlar yo'q</p>
+                        <p className="text-gray-500 font-medium">Oxirgi 24 soatda mijozlar yo'q</p>
                       </div>
                     </td>
                   </tr>
