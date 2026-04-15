@@ -31,7 +31,10 @@ const Dashboard = ({ onLogout }) => {
         const operatorClients = allClientsData.filter(client => client.operatorRaqam === operatorId);
         setClients(operatorClients);
       } catch (error) {
-        console.error('LocalStorage dan ma\'lumot yuklashda xatolik:', error);
+        // Production da console.error ni ko'rsatmaslik
+        if (process.env.NODE_ENV === 'development') {
+          console.error('LocalStorage dan ma\'lumot yuklashda xatolik:', error);
+        }
       }
     }
   }, [operatorId]);

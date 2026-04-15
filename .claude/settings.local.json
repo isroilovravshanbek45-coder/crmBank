@@ -2,7 +2,9 @@
   "permissions": {
     "allow": [
       "Bash(git add .)",
-      "Bash(git commit -m \"$(cat <<''EOF''\nfeat: add Vercel deployment configuration\n\n- Add vercel.json for deployment settings\n- Add vercel-build script to package.json\n- Add .vercelignore file\n- Add comprehensive README.md with deployment instructions\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")"
+      "Bash(git commit -m \"$(cat <<''EOF''\nfeat: add Vercel deployment configuration\n\n- Add vercel.json for deployment settings\n- Add vercel-build script to package.json\n- Add .vercelignore file\n- Add comprehensive README.md with deployment instructions\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(pnpm build)",
+      "Bash(git add -A)"
     ],
     "deny": [],
     "ask": []
