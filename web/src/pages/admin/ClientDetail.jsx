@@ -41,7 +41,7 @@ const ClientDetail = () => {
               </svg>
             </button>
             <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-full flex items-center justify-center text-white font-bold text-xl" style={{backgroundColor: '#0AC4E0'}}>
+              <div className="w-14 h-14 rounded-full flex items-center justify-center text-white font-bold text-xl" style={{backgroundColor: '#3B82F6'}}>
                 {client.ism.charAt(0)}{client.familya.charAt(0)}
               </div>
               <div>
@@ -55,7 +55,7 @@ const ClientDetail = () => {
 
       <div className="max-w-4xl mx-auto p-6">
         <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-          <div className="p-6 border-b border-gray-200" style={{backgroundColor: '#0AC4E0'}}>
+          <div className="p-6 border-b border-gray-200" style={{backgroundColor: '#3B82F6'}}>
             <h2 className="text-xl font-bold text-white">Mijoz ma'lumotlari</h2>
           </div>
 
@@ -67,7 +67,7 @@ const ClientDetail = () => {
                 <div>
                   <span className="inline-flex items-center px-4 py-2 rounded-full text-sm font-semibold text-white"
                     style={{
-                      backgroundColor: client.status === 'Tasdiqlangan' ? '#10B981' :
+                      backgroundColor: client.status === 'Tasdiqlangan' ? '#22C55E' :
                                      client.status === 'Rad etilgan' ? '#EF4444' :
                                      '#F59E0B'
                     }}>
@@ -109,8 +109,10 @@ const ClientDetail = () => {
                 <div>
                   <button
                     onClick={() => navigate(`/admin/operator/${client.operatorRaqam}`)}
-                    className="inline-flex items-center px-4 py-2 rounded-lg text-white font-bold text-sm hover:opacity-90 transition-opacity"
-                    style={{backgroundColor: '#0AC4E0'}}
+                    className="inline-flex items-center px-4 py-2 rounded-lg text-white font-bold text-sm transition-colors"
+                    style={{backgroundColor: '#3B82F6'}}
+                    onMouseEnter={(e) => e.target.style.backgroundColor = '#2563EB'}
+                    onMouseLeave={(e) => e.target.style.backgroundColor = '#3B82F6'}
                   >
                     Operator {client.operatorRaqam}
                   </button>

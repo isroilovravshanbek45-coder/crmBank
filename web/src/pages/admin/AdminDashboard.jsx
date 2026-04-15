@@ -54,17 +54,20 @@ const AdminDashboard = () => {
     const monthAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
 
     const todayClients = clientsData.filter(c => {
-      const createdDate = new Date(c.createdAt || Date.now());
+      if (!c.createdAt) return false;
+      const createdDate = new Date(c.createdAt);
       return createdDate >= today;
     }).length;
 
     const thisWeekClients = clientsData.filter(c => {
-      const createdDate = new Date(c.createdAt || Date.now());
+      if (!c.createdAt) return false;
+      const createdDate = new Date(c.createdAt);
       return createdDate >= weekAgo;
     }).length;
 
     const thisMonthClients = clientsData.filter(c => {
-      const createdDate = new Date(c.createdAt || Date.now());
+      if (!c.createdAt) return false;
+      const createdDate = new Date(c.createdAt);
       return createdDate >= monthAgo;
     }).length;
 
@@ -121,11 +124,20 @@ const AdminDashboard = () => {
 
     switch(selectedPeriod) {
       case 'today':
-        return clients.filter(c => new Date(c.createdAt || Date.now()) >= today);
+        return clients.filter(c => {
+          if (!c.createdAt) return false;
+          return new Date(c.createdAt) >= today;
+        });
       case 'week':
-        return clients.filter(c => new Date(c.createdAt || Date.now()) >= weekAgo);
+        return clients.filter(c => {
+          if (!c.createdAt) return false;
+          return new Date(c.createdAt) >= weekAgo;
+        });
       case 'month':
-        return clients.filter(c => new Date(c.createdAt || Date.now()) >= monthAgo);
+        return clients.filter(c => {
+          if (!c.createdAt) return false;
+          return new Date(c.createdAt) >= monthAgo;
+        });
       default:
         return clients;
     }
@@ -139,7 +151,22 @@ const AdminDashboard = () => {
         ...op,
         stats: operatorStats[op.id] || { total: 0, approved: 0, totalAmount: 0 }
       }))
-      .sort((a, b) => b.stats.approved - a.stats.approved)
+      .sort((a, b) => {
+        // Avval tasdiqlangan mijozlar soni bo'yicha
+        if (b.stats.approved !== a.stats.approved) {
+          return b.stats.approved - a.stats.approved;
+        }
+        // Agar teng bo'lsa, jami mijozlar soni bo'yicha
+        if (b.stats.total !== a.stats.total) {
+          return b.stats.total - a.stats.total;
+        }
+        // Agar u ham teng bo'lsa, jami summa bo'yicha
+        if (b.stats.totalAmount !== a.stats.totalAmount) {
+          return b.stats.totalAmount - a.stats.totalAmount;
+        }
+        // Agar hammasi teng bo'lsa, operator ID bo'yicha (kichikdan kattaga)
+        return a.id - b.id;
+      })
       .slice(0, 5);
   };
 
@@ -166,9 +193,9 @@ const AdminDashboard = () => {
               <button
                 onClick={handleLogout}
                 className="px-5 py-2.5 text-white rounded-lg font-medium transition-colors"
-                style={{backgroundColor: '#0AC4E0'}}
-                onMouseEnter={(e) => e.target.style.backgroundColor = '#09B0CC'}
-                onMouseLeave={(e) => e.target.style.backgroundColor = '#0AC4E0'}
+                style={{backgroundColor: '#3B82F6'}}
+                onMouseEnter={(e) => e.target.style.backgroundColor = '#2563EB'}
+                onMouseLeave={(e) => e.target.style.backgroundColor = '#3B82F6'}
               >
                 Chiqish
               </button>
@@ -183,7 +210,7 @@ const AdminDashboard = () => {
           {/* Total Clients */}
           <div className="bg-white border border-gray-200 rounded-xl p-5 hover:shadow-lg transition-shadow">
             <div className="flex items-center justify-between mb-3">
-              <div className="w-11 h-11 rounded-lg flex items-center justify-center" style={{backgroundColor: '#0AC4E0'}}>
+              <div className="w-11 h-11 rounded-lg flex items-center justify-center" style={{backgroundColor: '#3B82F6'}}>
                 <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                 </svg>
@@ -197,7 +224,7 @@ const AdminDashboard = () => {
           {/* Total Amount */}
           <div className="bg-white border border-gray-200 rounded-xl p-5 hover:shadow-lg transition-shadow">
             <div className="flex items-center justify-between mb-3">
-              <div className="w-11 h-11 rounded-lg flex items-center justify-center" style={{backgroundColor: '#0AC4E0'}}>
+              <div className="w-11 h-11 rounded-lg flex items-center justify-center" style={{backgroundColor: '#3B82F6'}}>
                 <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
@@ -212,12 +239,12 @@ const AdminDashboard = () => {
           {/* Approved */}
           <div className="bg-white border border-gray-200 rounded-xl p-5 hover:shadow-lg transition-shadow">
             <div className="flex items-center justify-between mb-3">
-              <div className="w-11 h-11 rounded-lg flex items-center justify-center" style={{backgroundColor: '#0AC4E0'}}>
+              <div className="w-11 h-11 rounded-lg flex items-center justify-center" style={{backgroundColor: '#3B82F6'}}>
                 <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
-              <span className="text-xs font-semibold px-2.5 py-1 rounded-full" style={{backgroundColor: '#E6F9FD', color: '#0AC4E0'}}>
+              <span className="text-xs font-semibold px-2.5 py-1 rounded-full" style={{backgroundColor: '#DBEAFE', color: '#3B82F6'}}>
                 {stats.totalClients > 0 ? ((stats.approved / stats.totalClients) * 100).toFixed(0) : 0}%
               </span>
             </div>
@@ -228,7 +255,7 @@ const AdminDashboard = () => {
                 className="rounded-full h-1.5 transition-all duration-500"
                 style={{
                   width: `${stats.totalClients > 0 ? (stats.approved / stats.totalClients) * 100 : 0}%`,
-                  backgroundColor: '#0AC4E0'
+                  backgroundColor: '#3B82F6'
                 }}
               ></div>
             </div>
@@ -237,15 +264,15 @@ const AdminDashboard = () => {
           {/* Pending */}
           <div className="bg-white border border-gray-200 rounded-xl p-5 hover:shadow-lg transition-shadow">
             <div className="flex items-center justify-between mb-3">
-              <div className="w-11 h-11 rounded-lg flex items-center justify-center" style={{backgroundColor: '#0AC4E0'}}>
+              <div className="w-11 h-11 rounded-lg flex items-center justify-center" style={{backgroundColor: '#3B82F6'}}>
                 <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
               <span className="flex gap-1">
-                <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{backgroundColor: '#0AC4E0'}}></span>
-                <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{backgroundColor: '#0AC4E0', animationDelay: '0.2s'}}></span>
-                <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{backgroundColor: '#0AC4E0', animationDelay: '0.4s'}}></span>
+                <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{backgroundColor: '#3B82F6'}}></span>
+                <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{backgroundColor: '#3B82F6', animationDelay: '0.2s'}}></span>
+                <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{backgroundColor: '#3B82F6', animationDelay: '0.4s'}}></span>
               </span>
             </div>
             <h3 className="text-xs font-medium text-gray-600 mb-1">Jarayonda</h3>
@@ -267,7 +294,7 @@ const AdminDashboard = () => {
                       ? 'text-white'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }`}
-                  style={selectedPeriod === period ? {backgroundColor: '#0AC4E0'} : {}}
+                  style={selectedPeriod === period ? {backgroundColor: '#3B82F6'} : {}}
                 >
                   {period === 'all' && 'Hammasi'}
                   {period === 'today' && 'Bugun'}
@@ -280,8 +307,8 @@ const AdminDashboard = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-lg flex items-center justify-center" style={{backgroundColor: '#E6F9FD'}}>
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{color: '#0AC4E0'}}>
+                <div className="w-12 h-12 rounded-lg flex items-center justify-center" style={{backgroundColor: '#DBEAFE'}}>
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{color: '#3B82F6'}}>
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
                   </svg>
                 </div>
@@ -294,8 +321,8 @@ const AdminDashboard = () => {
 
             <div className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-lg flex items-center justify-center" style={{backgroundColor: '#E6F9FD'}}>
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{color: '#0AC4E0'}}>
+                <div className="w-12 h-12 rounded-lg flex items-center justify-center" style={{backgroundColor: '#DBEAFE'}}>
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{color: '#3B82F6'}}>
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                   </svg>
                 </div>
@@ -308,8 +335,8 @@ const AdminDashboard = () => {
 
             <div className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-lg flex items-center justify-center" style={{backgroundColor: '#E6F9FD'}}>
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{color: '#0AC4E0'}}>
+                <div className="w-12 h-12 rounded-lg flex items-center justify-center" style={{backgroundColor: '#DBEAFE'}}>
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{color: '#3B82F6'}}>
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
                 </div>
@@ -327,22 +354,22 @@ const AdminDashboard = () => {
           <h2 className="text-lg font-bold text-gray-900 mb-6">Top 5 Eng yaxshi operatorlar</h2>
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             {topOperators.map((operator, index) => (
-              <div key={operator.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-all" style={{borderColor: index === 0 ? '#0AC4E0' : ''}}>
+              <div key={operator.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-all" style={{borderColor: index === 0 ? '#3B82F6' : ''}}>
                 <div className="flex flex-col items-center text-center">
                   <div className="relative mb-3">
                     <div className={`w-14 h-14 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-md`}
                       style={{
-                        backgroundColor: index === 0 ? '#0AC4E0' :
-                                       index === 1 ? '#4DD4E8' :
-                                       index === 2 ? '#80DFF0' :
-                                       index === 3 ? '#B3EBF5' :
-                                       '#D9F5FA'
+                        backgroundColor: index === 0 ? '#3B82F6' :
+                                       index === 1 ? '#60A5FA' :
+                                       index === 2 ? '#93C5FD' :
+                                       index === 3 ? '#BFDBFE' :
+                                       '#DBEAFE'
                       }}
                     >
                       {operator.id}
                     </div>
                     {index < 3 && (
-                      <div className="absolute -top-1 -right-1 w-6 h-6 bg-white rounded-full flex items-center justify-center text-xs font-bold shadow-sm" style={{border: `2px solid ${index === 0 ? '#0AC4E0' : '#E0E0E0'}`}}>
+                      <div className="absolute -top-1 -right-1 w-6 h-6 bg-white rounded-full flex items-center justify-center text-xs font-bold shadow-sm" style={{border: `2px solid ${index === 0 ? '#3B82F6' : '#E0E0E0'}`}}>
                         {index + 1}
                       </div>
                     )}
@@ -384,7 +411,7 @@ const AdminDashboard = () => {
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold text-sm"
-                            style={{backgroundColor: '#0AC4E0'}}>
+                            style={{backgroundColor: '#3B82F6'}}>
                             {operator.id}
                           </div>
                           <div>
@@ -399,7 +426,7 @@ const AdminDashboard = () => {
                         </span>
                       </td>
                       <td className="px-6 py-4 text-center">
-                        <span className="inline-flex items-center justify-center w-10 h-10 rounded-lg text-white font-bold text-sm" style={{backgroundColor: '#10B981'}}>
+                        <span className="inline-flex items-center justify-center w-10 h-10 rounded-lg text-white font-bold text-sm" style={{backgroundColor: '#22C55E'}}>
                           {stats.approved}
                         </span>
                       </td>
@@ -424,7 +451,7 @@ const AdminDashboard = () => {
                           <div className="flex-1 bg-gray-200 rounded-full h-2 overflow-hidden">
                             <div
                               className="h-2 rounded-full transition-all duration-500"
-                              style={{ width: `${efficiency}%`, backgroundColor: '#0AC4E0' }}
+                              style={{ width: `${efficiency}%`, backgroundColor: '#3B82F6' }}
                             ></div>
                           </div>
                           <span className="font-bold text-sm text-gray-900 min-w-[45px]">
@@ -445,11 +472,11 @@ const AdminDashboard = () => {
           <div className="px-6 py-5 border-b border-gray-200 flex items-center justify-between">
             <h2 className="text-lg font-bold text-gray-900">Oxirgi mijozlar ({filteredClients.length})</h2>
             <button
-              onClick={() => navigate('/dashboard')}
+              onClick={() => navigate('/admin/clients')}
               className="px-4 py-2 text-white rounded-lg text-sm font-medium transition-colors"
-              style={{backgroundColor: '#0AC4E0'}}
-              onMouseEnter={(e) => e.target.style.backgroundColor = '#09B0CC'}
-              onMouseLeave={(e) => e.target.style.backgroundColor = '#0AC4E0'}
+              style={{backgroundColor: '#3B82F6'}}
+              onMouseEnter={(e) => e.target.style.backgroundColor = '#2563EB'}
+              onMouseLeave={(e) => e.target.style.backgroundColor = '#3B82F6'}
             >
               Barchasini ko'rish →
             </button>
@@ -471,7 +498,7 @@ const AdminDashboard = () => {
                   <tr key={client.id} className="hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => navigate(`/admin/client/${client.id}`)}>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full text-white flex items-center justify-center font-bold text-sm" style={{backgroundColor: '#0AC4E0'}}>
+                        <div className="w-10 h-10 rounded-full text-white flex items-center justify-center font-bold text-sm" style={{backgroundColor: '#3B82F6'}}>
                           {client.ism.charAt(0)}{client.familya.charAt(0)}
                         </div>
                         <p className="font-semibold text-gray-900">{client.ism} {client.familya}</p>
@@ -486,14 +513,14 @@ const AdminDashboard = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4 text-center">
-                      <span className="inline-flex items-center px-3 py-1.5 rounded-lg text-white font-bold text-sm" style={{backgroundColor: '#0AC4E0'}}>
+                      <span className="inline-flex items-center px-3 py-1.5 rounded-lg text-white font-bold text-sm" style={{backgroundColor: '#3B82F6'}}>
                         {client.operatorRaqam}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-center">
                       <span className="inline-flex items-center px-4 py-1.5 rounded-full text-xs font-semibold text-white"
                       style={{
-                        backgroundColor: client.status === 'Tasdiqlangan' ? '#10B981' :
+                        backgroundColor: client.status === 'Tasdiqlangan' ? '#22C55E' :
                                        client.status === 'Rad etilgan' ? '#EF4444' :
                                        '#F59E0B'
                       }}>

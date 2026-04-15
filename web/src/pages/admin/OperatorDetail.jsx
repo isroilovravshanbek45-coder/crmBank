@@ -68,7 +68,7 @@ const OperatorDetail = () => {
               </svg>
             </button>
             <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-full flex items-center justify-center text-white font-bold text-xl" style={{backgroundColor: '#0AC4E0'}}>
+              <div className="w-14 h-14 rounded-full flex items-center justify-center text-white font-bold text-xl" style={{backgroundColor: '#3B82F6'}}>
                 {operator.id}
               </div>
               <div>
@@ -85,8 +85,8 @@ const OperatorDetail = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
           <div className="bg-white border border-gray-200 rounded-xl p-5 hover:shadow-lg transition-shadow">
             <div className="flex items-center justify-between mb-3">
-              <div className="w-11 h-11 rounded-lg flex items-center justify-center" style={{backgroundColor: '#E6F9FD'}}>
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{color: '#0AC4E0'}}>
+              <div className="w-11 h-11 rounded-lg flex items-center justify-center" style={{backgroundColor: '#DBEAFE'}}>
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{color: '#3B82F6'}}>
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                 </svg>
               </div>
@@ -98,42 +98,42 @@ const OperatorDetail = () => {
           <div className="bg-white border border-gray-200 rounded-xl p-5 hover:shadow-lg transition-shadow">
             <div className="flex items-center justify-between mb-3">
               <div className="w-11 h-11 rounded-lg flex items-center justify-center" style={{backgroundColor: '#D1FAE5'}}>
-                <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{color: '#22C55E'}}>
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
             </div>
             <h3 className="text-xs font-medium text-gray-600 mb-1">Tasdiqlangan</h3>
-            <p className="text-3xl font-bold text-green-600">{operatorStats.approved}</p>
+            <p className="text-3xl font-bold" style={{color: '#22C55E'}}>{operatorStats.approved}</p>
           </div>
 
           <div className="bg-white border border-gray-200 rounded-xl p-5 hover:shadow-lg transition-shadow">
             <div className="flex items-center justify-between mb-3">
               <div className="w-11 h-11 rounded-lg flex items-center justify-center" style={{backgroundColor: '#FEF3C7'}}>
-                <svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{color: '#F59E0B'}}>
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
             </div>
             <h3 className="text-xs font-medium text-gray-600 mb-1">Jarayonda</h3>
-            <p className="text-3xl font-bold text-yellow-600">{operatorStats.pending}</p>
+            <p className="text-3xl font-bold" style={{color: '#F59E0B'}}>{operatorStats.pending}</p>
           </div>
 
           <div className="bg-white border border-gray-200 rounded-xl p-5 hover:shadow-lg transition-shadow">
             <div className="flex items-center justify-between mb-3">
               <div className="w-11 h-11 rounded-lg flex items-center justify-center" style={{backgroundColor: '#FEE2E2'}}>
-                <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{color: '#EF4444'}}>
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
             </div>
             <h3 className="text-xs font-medium text-gray-600 mb-1">Rad etilgan</h3>
-            <p className="text-3xl font-bold text-red-600">{operatorStats.rejected}</p>
+            <p className="text-3xl font-bold" style={{color: '#EF4444'}}>{operatorStats.rejected}</p>
           </div>
 
           <div className="bg-white border border-gray-200 rounded-xl p-5 hover:shadow-lg transition-shadow">
             <div className="flex items-center justify-between mb-3">
-              <div className="w-11 h-11 rounded-lg flex items-center justify-center" style={{backgroundColor: '#0AC4E0'}}>
+              <div className="w-11 h-11 rounded-lg flex items-center justify-center" style={{backgroundColor: '#3B82F6'}}>
                 <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
@@ -184,7 +184,7 @@ const OperatorDetail = () => {
                       <td className="px-6 py-4 text-sm text-gray-900">{client.id}</td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full text-white flex items-center justify-center font-bold text-sm" style={{backgroundColor: '#0AC4E0'}}>
+                          <div className="w-10 h-10 rounded-full text-white flex items-center justify-center font-bold text-sm" style={{backgroundColor: '#3B82F6'}}>
                             {client.ism.charAt(0)}{client.familya.charAt(0)}
                           </div>
                           <p className="font-semibold text-gray-900">{client.ism} {client.familya}</p>
@@ -201,7 +201,7 @@ const OperatorDetail = () => {
                       <td className="px-6 py-4 text-center">
                         <span className="inline-flex items-center px-4 py-1.5 rounded-full text-xs font-semibold text-white"
                           style={{
-                            backgroundColor: client.status === 'Tasdiqlangan' ? '#10B981' :
+                            backgroundColor: client.status === 'Tasdiqlangan' ? '#22C55E' :
                                            client.status === 'Rad etilgan' ? '#EF4444' :
                                            '#F59E0B'
                           }}>

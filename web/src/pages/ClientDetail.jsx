@@ -29,7 +29,7 @@ const ClientDetail = () => {
   }
 
   const getStatusColor = (status) => {
-    if (status === 'Tasdiqlangan') return '#10B981';
+    if (status === 'Tasdiqlangan') return '#22C55E';
     if (status === 'Rad etilgan') return '#EF4444';
     return '#F59E0B';
   };

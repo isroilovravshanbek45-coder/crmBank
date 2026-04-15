@@ -4,6 +4,7 @@ import LoginPage from './pages/LoginPage';
 import Dashboard from './pages/Dashboard';
 import AdminLogin from './pages/admin/AdminLogin';
 import AdminDashboard from './pages/admin/AdminDashboard';
+import AllClients from './pages/admin/AllClients';
 import OperatorDetail from './pages/admin/OperatorDetail';
 import AdminClientDetail from './pages/admin/ClientDetail';
 import ClientDetail from './pages/ClientDetail';
@@ -71,6 +72,14 @@ function App() {
           element={
             <AdminProtectedRoute>
               <OperatorDetail />
+            </AdminProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/clients"
+          element={
+            <AdminProtectedRoute>
+              <AllClients />
             </AdminProtectedRoute>
           }
         />

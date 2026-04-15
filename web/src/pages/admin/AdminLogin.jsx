@@ -34,7 +34,7 @@ const AdminLogin = () => {
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-indigo-50 to-blue-50 flex items-center justify-center px-4">
       <div className="max-w-md w-full bg-white rounded-2xl shadow-2xl p-8">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-full mb-4">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full mb-4" style={{backgroundColor: '#3B82F6'}}>
             <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
             </svg>
@@ -61,7 +61,8 @@ const AdminLogin = () => {
               name="login"
               value={formData.login}
               onChange={handleChange}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent outline-none transition"
+              style={{focusRing: '#3B82F6'}}
               placeholder="Admin loginni kiriting"
               autoComplete="new-password"
               required
@@ -80,7 +81,7 @@ const AdminLogin = () => {
                 name="password"
                 value={formData.password}
                 onChange={handleChange}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition pr-12"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent outline-none transition pr-12"
                 placeholder="Parolni kiriting"
                 autoComplete="new-password"
                 required
@@ -107,7 +108,10 @@ const AdminLogin = () => {
           {/* Submit Button */}
           <button
             type="submit"
-            className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white py-3 rounded-lg font-semibold hover:from-purple-700 hover:to-indigo-700 focus:ring-4 focus:ring-purple-300 transition duration-200 shadow-lg"
+            className="w-full text-white py-3 rounded-lg font-semibold focus:ring-4 transition duration-200 shadow-lg"
+            style={{backgroundColor: '#3B82F6'}}
+            onMouseEnter={(e) => e.target.style.backgroundColor = '#2563EB'}
+            onMouseLeave={(e) => e.target.style.backgroundColor = '#3B82F6'}
           >
             Kirish
           </button>
@@ -116,7 +120,10 @@ const AdminLogin = () => {
         <div className="mt-6 text-center">
           <button
             onClick={() => navigate('/')}
-            className="text-purple-600 hover:text-purple-700 text-sm font-semibold transition"
+            className="text-sm font-semibold transition"
+            style={{color: '#3B82F6'}}
+            onMouseEnter={(e) => e.target.style.color = '#2563EB'}
+            onMouseLeave={(e) => e.target.style.color = '#3B82F6'}
           >
             ← CRM tizimiga qaytish
           </button>

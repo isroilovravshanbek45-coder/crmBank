@@ -159,15 +159,15 @@ const Dashboard = ({ onLogout }) => {
           </div>
           <div className="bg-white rounded-lg shadow p-6">
             <p className="text-gray-600 text-sm mb-2">Tasdiqlangan</p>
-            <p className="text-3xl font-bold text-green-600">{approvedClients}</p>
+            <p className="text-3xl font-bold" style={{color: '#22C55E'}}>{approvedClients}</p>
           </div>
           <div className="bg-white rounded-lg shadow p-6">
             <p className="text-gray-600 text-sm mb-2">Jarayonda</p>
-            <p className="text-3xl font-bold text-yellow-600">{pendingClients}</p>
+            <p className="text-3xl font-bold" style={{color: '#F59E0B'}}>{pendingClients}</p>
           </div>
           <div className="bg-white rounded-lg shadow p-6">
             <p className="text-gray-600 text-sm mb-2">Rad etilgan</p>
-            <p className="text-3xl font-bold text-red-600">{rejectedClients}</p>
+            <p className="text-3xl font-bold" style={{color: '#EF4444'}}>{rejectedClients}</p>
           </div>
         </div>
 
@@ -313,11 +313,12 @@ const Dashboard = ({ onLogout }) => {
                       <td className="px-6 py-4 text-sm text-gray-900">{client.garov}</td>
                       <td className="px-6 py-4 text-sm text-gray-900">{parseFloat(client.summa).toLocaleString()} UZS</td>
                       <td className="px-6 py-4 text-sm">
-                        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                          client.status === 'Tasdiqlangan' ? 'bg-green-100 text-green-800' :
-                          client.status === 'Rad etilgan' ? 'bg-red-100 text-red-800' :
-                          'bg-yellow-100 text-yellow-800'
-                        }`}>
+                        <span className="px-3 py-1 rounded-full text-xs font-semibold text-white"
+                          style={{
+                            backgroundColor: client.status === 'Tasdiqlangan' ? '#22C55E' :
+                                           client.status === 'Rad etilgan' ? '#EF4444' :
+                                           '#F59E0B'
+                          }}>
                           {client.status}
                         </span>
                       </td>
