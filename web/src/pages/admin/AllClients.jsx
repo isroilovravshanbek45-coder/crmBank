@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import * as XLSX from 'xlsx';
+import { getAllClients } from '../../services/clientService';
 
 const AllClients = () => {
   const navigate = useNavigate();
@@ -9,15 +10,27 @@ const AllClients = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterOperator, setFilterOperator] = useState('all');
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const savedClients = localStorage.getItem('bankCrmClients');
-    if (savedClients) {
-      const clientsData = JSON.parse(savedClients);
-      setAllClients(clientsData);
-      setFilteredClients(clientsData);
-    }
+    loadClients();
   }, []);
+
+  const loadClients = async () => {
+    try {
+      setLoading(true);
+      const response = await getAllClients();
+      if (response.success) {
+        setAllClients(response.data);
+        setFilteredClients(response.data);
+      }
+    } catch (error) {
+      console.error('Mijozlarni yuklashda xatolik:', error);
+      alert('Mijozlarni yuklashda xatolik yuz berdi');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     let filtered = [...allClients];
@@ -65,7 +78,7 @@ const AllClients = () => {
         : 'Noma\'lum';
 
       return {
-        'ID': client.id,
+        'ID': client._id,
         'Ism': client.ism,
         'Familya': client.familya,
         'Telefon': client.telefon,
@@ -168,6 +181,17 @@ const AllClients = () => {
     const operators = [...new Set(allClients.map(c => c.operatorRaqam))];
     return operators.sort();
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-gray-200 border-t-blue-600 rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">Yuklanmoqda...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -285,13 +309,13 @@ const AllClients = () => {
                     </td>
                   </tr>
                 ) : (
-                  filteredClients.map((client) => (
+                  filteredClients.map((client, index) => (
                     <tr
-                      key={client.id}
+                      key={client._id}
                       className="hover:bg-gray-50 transition-colors cursor-pointer"
-                      onClick={() => navigate(`/admin/client/${client.id}`)}
+                      onClick={() => navigate(`/admin/client/${client._id}`)}
                     >
-                      <td className="px-6 py-4 text-sm text-gray-900 font-medium">{client.id}</td>
+                      <td className="px-6 py-4 text-sm text-gray-900 font-medium">{index + 1}</td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 rounded-full text-white flex items-center justify-center font-bold text-sm" style={{backgroundColor: '#3B82F6'}}>

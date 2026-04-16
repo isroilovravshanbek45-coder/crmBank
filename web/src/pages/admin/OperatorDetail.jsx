@@ -1,57 +1,46 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { getOperatorById } from '../../services/operatorService';
 
 const OperatorDetail = () => {
   const navigate = useNavigate();
   const { id } = useParams();
-  const [operator, setOperator] = useState(null);
-  const [clients, setClients] = useState([]);
-  const [operatorStats, setOperatorStats] = useState({
-    total: 0,
-    approved: 0,
-    pending: 0,
-    rejected: 0,
-    totalAmount: 0
-  });
+  const [operatorData, setOperatorData] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Ma'lumotlarni yuklash
-    const savedClients = localStorage.getItem('bankCrmClients');
-    const savedOperators = localStorage.getItem('bankCrmOperators');
-
-    if (savedOperators) {
-      const operatorsData = JSON.parse(savedOperators);
-      const foundOperator = operatorsData.find(op => op.id === parseInt(id));
-      setOperator(foundOperator);
-    }
-
-    if (savedClients) {
-      const clientsData = JSON.parse(savedClients);
-      const operatorClients = clientsData.filter(client => client.operatorRaqam === id);
-      setClients(operatorClients);
-
-      // Statistikani hisoblash
-      const stats = {
-        total: operatorClients.length,
-        approved: operatorClients.filter(c => c.status === 'Tasdiqlangan').length,
-        pending: operatorClients.filter(c => c.status === 'Jarayonda').length,
-        rejected: operatorClients.filter(c => c.status === 'Rad etilgan').length,
-        totalAmount: operatorClients.reduce((sum, c) => sum + (parseFloat(c.summa) || 0), 0)
-      };
-      setOperatorStats(stats);
-    }
+    loadOperator();
   }, [id]);
 
-  if (!operator) {
+  const loadOperator = async () => {
+    try {
+      setLoading(true);
+      const response = await getOperatorById(id);
+      if (response.success) {
+        setOperatorData(response.data);
+      }
+    } catch (error) {
+      console.error('Operatorni yuklashda xatolik:', error);
+      alert('Operatorni yuklashda xatolik yuz berdi');
+      navigate(-1);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading || !operatorData) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="w-16 h-16 border-4 border-gray-200 border-t-cyan-500 rounded-full animate-spin mx-auto mb-4"></div>
+          <div className="w-16 h-16 border-4 border-gray-200 border-t-blue-600 rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-gray-600">Yuklanmoqda...</p>
         </div>
       </div>
     );
   }
+
+  const { operator, stats, clients } = operatorData;
+  const efficiency = stats.total > 0 ? ((stats.approved / stats.total) * 100).toFixed(1) : 0;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -68,7 +57,8 @@ const OperatorDetail = () => {
               </svg>
             </button>
             <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-full flex items-center justify-center text-white font-bold text-xl" style={{backgroundColor: '#3B82F6'}}>
+              <div className="w-14 h-14 rounded-lg flex items-center justify-center text-white font-bold text-2xl"
+                style={{backgroundColor: '#3B82F6'}}>
                 {operator.id}
               </div>
               <div>
@@ -80,118 +70,93 @@ const OperatorDetail = () => {
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto p-6 space-y-6">
-        {/* Statistika kartalari */}
+      <div className="max-w-7xl mx-auto p-6 space-y-8">
+        {/* Statistics Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
           <div className="bg-white border border-gray-200 rounded-xl p-5 hover:shadow-lg transition-shadow">
-            <div className="flex items-center justify-between mb-3">
-              <div className="w-11 h-11 rounded-lg flex items-center justify-center" style={{backgroundColor: '#DBEAFE'}}>
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{color: '#3B82F6'}}>
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                </svg>
-              </div>
-            </div>
-            <h3 className="text-xs font-medium text-gray-600 mb-1">Jami Mijozlar</h3>
-            <p className="text-3xl font-bold text-gray-900">{operatorStats.total}</p>
+            <h3 className="text-xs font-medium text-gray-600 mb-1">Jami mijozlar</h3>
+            <p className="text-3xl font-bold text-gray-900">{stats.total}</p>
           </div>
 
           <div className="bg-white border border-gray-200 rounded-xl p-5 hover:shadow-lg transition-shadow">
-            <div className="flex items-center justify-between mb-3">
-              <div className="w-11 h-11 rounded-lg flex items-center justify-center" style={{backgroundColor: '#D1FAE5'}}>
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{color: '#22C55E'}}>
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-            </div>
             <h3 className="text-xs font-medium text-gray-600 mb-1">Tasdiqlangan</h3>
-            <p className="text-3xl font-bold" style={{color: '#22C55E'}}>{operatorStats.approved}</p>
+            <p className="text-3xl font-bold" style={{color: '#22C55E'}}>{stats.approved}</p>
           </div>
 
           <div className="bg-white border border-gray-200 rounded-xl p-5 hover:shadow-lg transition-shadow">
-            <div className="flex items-center justify-between mb-3">
-              <div className="w-11 h-11 rounded-lg flex items-center justify-center" style={{backgroundColor: '#FEF3C7'}}>
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{color: '#F59E0B'}}>
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-            </div>
             <h3 className="text-xs font-medium text-gray-600 mb-1">Jarayonda</h3>
-            <p className="text-3xl font-bold" style={{color: '#F59E0B'}}>{operatorStats.pending}</p>
+            <p className="text-3xl font-bold" style={{color: '#F59E0B'}}>{stats.pending}</p>
           </div>
 
           <div className="bg-white border border-gray-200 rounded-xl p-5 hover:shadow-lg transition-shadow">
-            <div className="flex items-center justify-between mb-3">
-              <div className="w-11 h-11 rounded-lg flex items-center justify-center" style={{backgroundColor: '#FEE2E2'}}>
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{color: '#EF4444'}}>
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-            </div>
             <h3 className="text-xs font-medium text-gray-600 mb-1">Rad etilgan</h3>
-            <p className="text-3xl font-bold" style={{color: '#EF4444'}}>{operatorStats.rejected}</p>
+            <p className="text-3xl font-bold" style={{color: '#EF4444'}}>{stats.rejected}</p>
           </div>
 
           <div className="bg-white border border-gray-200 rounded-xl p-5 hover:shadow-lg transition-shadow">
-            <div className="flex items-center justify-between mb-3">
-              <div className="w-11 h-11 rounded-lg flex items-center justify-center" style={{backgroundColor: '#3B82F6'}}>
-                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-            </div>
-            <h3 className="text-xs font-medium text-gray-600 mb-1">Jami Summa</h3>
-            <p className="text-2xl font-bold text-gray-900">{(operatorStats.totalAmount / 1000000).toFixed(1)}M</p>
-            <p className="text-xs text-gray-500 mt-0.5">{operatorStats.totalAmount.toLocaleString()} so'm</p>
+            <h3 className="text-xs font-medium text-gray-600 mb-1">Samaradorlik</h3>
+            <p className="text-3xl font-bold text-gray-900">{efficiency}%</p>
           </div>
+        </div>
+
+        {/* Jami summa */}
+        <div className="bg-white border border-gray-200 rounded-xl p-6">
+          <h2 className="text-lg font-bold text-gray-900 mb-4">Jami summa</h2>
+          <p className="text-4xl font-bold text-gray-900">{stats.totalAmount.toLocaleString()}</p>
+          <p className="text-sm text-gray-500 mt-1">UZS</p>
         </div>
 
         {/* Mijozlar ro'yxati */}
         <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
           <div className="px-6 py-5 border-b border-gray-200">
-            <h2 className="text-lg font-bold text-gray-900">Mijozlar ro'yxati ({clients.length})</h2>
+            <h2 className="text-lg font-bold text-gray-900">Mijozlar ro'yxati</h2>
+            <p className="text-sm text-gray-500 mt-1">Jami: {clients.length} ta mijoz</p>
           </div>
-
-          {clients.length === 0 ? (
-            <div className="text-center py-16">
-              <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg className="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                </svg>
-              </div>
-              <p className="text-gray-500 font-medium">Bu operatorda hozircha mijozlar yo'q</p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="bg-gray-50 border-b border-gray-200">
-                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">#</th>
-                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Mijoz</th>
-                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Telefon</th>
-                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Hudud</th>
-                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Summa</th>
-                    <th className="px-6 py-4 text-center text-xs font-bold text-gray-700 uppercase tracking-wider">Status</th>
-                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Garov</th>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="bg-gray-50 border-b border-gray-200">
+                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">#</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Mijoz</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Telefon</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Hudud</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Garov</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Summa</th>
+                  <th className="px-6 py-4 text-center text-xs font-bold text-gray-700 uppercase tracking-wider">Status</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Sana</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {clients.length === 0 ? (
+                  <tr>
+                    <td colSpan="8" className="px-6 py-16 text-center">
+                      <div className="flex flex-col items-center gap-3">
+                        <div className="w-20 h-20 rounded-full bg-gray-100 flex items-center justify-center">
+                          <svg className="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                          </svg>
+                        </div>
+                        <p className="text-gray-500 font-medium">Bu operator hali mijoz qo'shmagan</p>
+                      </div>
+                    </td>
                   </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {clients.map((client) => (
-                    <tr
-                      key={client.id}
-                      className="hover:bg-gray-50 transition-colors cursor-pointer"
-                      onClick={() => navigate(`/admin/client/${client.id}`)}
-                    >
-                      <td className="px-6 py-4 text-sm text-gray-900">{client.id}</td>
+                ) : (
+                  clients.map((client, index) => (
+                    <tr key={client._id} className="hover:bg-gray-50 transition-colors cursor-pointer"
+                      onClick={() => navigate(`/admin/client/${client._id}`)}>
+                      <td className="px-6 py-4 text-sm text-gray-900 font-medium">{index + 1}</td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full text-white flex items-center justify-center font-bold text-sm" style={{backgroundColor: '#3B82F6'}}>
+                          <div className="w-10 h-10 rounded-full text-white flex items-center justify-center font-bold text-sm"
+                            style={{backgroundColor: '#3B82F6'}}>
                             {client.ism.charAt(0)}{client.familya.charAt(0)}
                           </div>
                           <p className="font-semibold text-gray-900">{client.ism} {client.familya}</p>
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-900 font-medium">{client.telefon}</td>
+                      <td className="px-6 py-4 text-sm text-gray-900">{client.telefon}</td>
                       <td className="px-6 py-4 text-sm text-gray-600">{client.hudud}</td>
+                      <td className="px-6 py-4 text-sm text-gray-600">{client.garov}</td>
                       <td className="px-6 py-4">
                         <div>
                           <p className="font-bold text-gray-900">{parseFloat(client.summa).toLocaleString()}</p>
@@ -208,13 +173,24 @@ const OperatorDetail = () => {
                           {client.status}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-900">{client.garov}</td>
+                      <td className="px-6 py-4 text-sm text-gray-600 whitespace-nowrap">
+                        {client.createdAt
+                          ? new Date(client.createdAt).toLocaleString('uz-UZ', {
+                              day: '2-digit',
+                              month: '2-digit',
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })
+                          : '-'
+                        }
+                      </td>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>

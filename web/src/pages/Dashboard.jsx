@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { getOperatorClients, createClient, updateClient } from '../services/clientService';
+import { logout } from '../services/authService';
 
 const Dashboard = ({ onLogout }) => {
   const navigate = useNavigate();
-  const [allClients, setAllClients] = useState([]);
   const [clients, setClients] = useState([]);
   const operatorId = localStorage.getItem('bankCrmOperatorId') || '401';
   const [formData, setFormData] = useState({
@@ -13,38 +14,33 @@ const Dashboard = ({ onLogout }) => {
     hudud: '',
     garov: '',
     summa: '',
-    operatorRaqam: localStorage.getItem('bankCrmOperatorId') || '401',
     status: 'Jarayonda',
     comment: ''
   });
   const [isEditing, setIsEditing] = useState(false);
   const [editingId, setEditingId] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
-  // LocalStorage dan ma'lumotlarni yuklash
+  // API dan ma'lumotlarni yuklash
   useEffect(() => {
-    const savedClients = localStorage.getItem('bankCrmClients');
-    if (savedClients) {
-      try {
-        const allClientsData = JSON.parse(savedClients);
-        setAllClients(allClientsData);
-        // Faqat o'sha operatorning mijozlarini filtrlash
-        const operatorClients = allClientsData.filter(client => client.operatorRaqam === operatorId);
-        setClients(operatorClients);
-      } catch (error) {
-        // Production da console.error ni ko'rsatmaslik
-        if (process.env.NODE_ENV === 'development') {
-          console.error('LocalStorage dan ma\'lumot yuklashda xatolik:', error);
-        }
+    loadClients();
+  }, []);
+
+  const loadClients = async () => {
+    try {
+      setLoading(true);
+      const response = await getOperatorClients();
+      if (response.success) {
+        setClients(response.data);
       }
+    } catch (error) {
+      console.error('Mijozlarni yuklashda xatolik:', error);
+      alert('Mijozlarni yuklashda xatolik yuz berdi');
+    } finally {
+      setLoading(false);
     }
-  }, [operatorId]);
-
-  // AllClients o'zgarganda LocalStorage ga saqlash
-  useEffect(() => {
-    if (allClients.length > 0) {
-      localStorage.setItem('bankCrmClients', JSON.stringify(allClients));
-    }
-  }, [allClients]);
+  };
 
   const handleChange = (e) => {
     setFormData({
@@ -53,43 +49,46 @@ const Dashboard = ({ onLogout }) => {
     });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setSubmitting(true);
 
-    if (isEditing) {
-      // Tahrirlash rejimi
-      const updatedAllClients = allClients.map(client =>
-        client.id === editingId ? { ...formData, id: editingId } : client
-      );
-      setAllClients(updatedAllClients);
-      setClients(updatedAllClients.filter(client => client.operatorRaqam === operatorId));
-      setIsEditing(false);
-      setEditingId(null);
-    } else {
-      // Yangi mijoz qo'shish
-      const newClient = {
-        id: allClients.length > 0 ? Math.max(...allClients.map(c => c.id)) + 1 : 1,
-        ...formData,
-        operatorRaqam: operatorId, // Avtomatik o'sha operatorni o'rnatish
-        createdAt: new Date().toISOString()
-      };
-      const updatedAllClients = [...allClients, newClient];
-      setAllClients(updatedAllClients);
-      setClients(updatedAllClients.filter(client => client.operatorRaqam === operatorId));
+    try {
+      if (isEditing) {
+        // Tahrirlash rejimi
+        const response = await updateClient(editingId, formData);
+        if (response.success) {
+          await loadClients(); // Yangilangan ma'lumotlarni yuklash
+          setIsEditing(false);
+          setEditingId(null);
+          alert('Mijoz muvaffaqiyatli yangilandi');
+        }
+      } else {
+        // Yangi mijoz qo'shish
+        const response = await createClient(formData);
+        if (response.success) {
+          await loadClients(); // Yangi mijozni ko'rish uchun
+          alert('Mijoz muvaffaqiyatli qo\'shildi');
+        }
+      }
+
+      // Formani tozalash
+      setFormData({
+        ism: '',
+        familya: '',
+        telefon: '',
+        hudud: '',
+        garov: '',
+        summa: '',
+        status: 'Jarayonda',
+        comment: ''
+      });
+    } catch (error) {
+      console.error('Xatolik:', error);
+      alert(error.message || 'Xatolik yuz berdi');
+    } finally {
+      setSubmitting(false);
     }
-
-    // Formani tozalash
-    setFormData({
-      ism: '',
-      familya: '',
-      telefon: '',
-      hudud: '',
-      garov: '',
-      summa: '',
-      operatorRaqam: operatorId,
-      status: 'Jarayonda',
-      comment: ''
-    });
   };
 
   const handleEdit = (client) => {
@@ -100,12 +99,11 @@ const Dashboard = ({ onLogout }) => {
       hudud: client.hudud,
       garov: client.garov,
       summa: client.summa,
-      operatorRaqam: client.operatorRaqam,
       status: client.status,
       comment: client.comment || ''
     });
     setIsEditing(true);
-    setEditingId(client.id);
+    setEditingId(client._id);
     // Formaga scroll qilish
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -120,10 +118,14 @@ const Dashboard = ({ onLogout }) => {
       hudud: '',
       garov: '',
       summa: '',
-      operatorRaqam: operatorId,
       status: 'Jarayonda',
       comment: ''
     });
+  };
+
+  const handleLogout = () => {
+    logout();
+    onLogout();
   };
 
   // Statistika hisoblash
@@ -133,13 +135,24 @@ const Dashboard = ({ onLogout }) => {
   const pendingClients = clients.filter(c => c.status === 'Jarayonda').length;
   const rejectedClients = clients.filter(c => c.status === 'Rad etilgan').length;
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-gray-200 border-t-blue-600 rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">Yuklanmoqda...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-white shadow-sm px-6 py-4 flex justify-between items-center">
         <h1 className="text-2xl font-bold text-gray-800">Bank CRM</h1>
         <button
-          onClick={onLogout}
+          onClick={handleLogout}
           className="text-red-600 hover:text-red-700 font-semibold transition"
         >
           Chiqish
@@ -273,9 +286,10 @@ const Dashboard = ({ onLogout }) => {
 
             <button
               type="submit"
-              className="bg-blue-600 text-white px-8 py-2 rounded-lg font-semibold hover:bg-blue-700 transition"
+              disabled={submitting}
+              className="bg-blue-600 text-white px-8 py-2 rounded-lg font-semibold hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isEditing ? 'Yangilash' : 'Qo\'shish'}
+              {submitting ? 'Yuklanmoqda...' : (isEditing ? 'Yangilash' : 'Qo\'shish')}
             </button>
           </form>
         </div>
@@ -306,9 +320,9 @@ const Dashboard = ({ onLogout }) => {
                     </td>
                   </tr>
                 ) : (
-                  clients.map((client) => (
-                    <tr key={client.id} className="hover:bg-gray-50 transition cursor-pointer" onClick={() => navigate(`/client/${client.id}`)}>
-                      <td className="px-6 py-4 text-sm text-gray-900">{client.id}</td>
+                  clients.map((client, index) => (
+                    <tr key={client._id} className="hover:bg-gray-50 transition cursor-pointer" onClick={() => navigate(`/client/${client._id}`)}>
+                      <td className="px-6 py-4 text-sm text-gray-900">{index + 1}</td>
                       <td className="px-6 py-4 text-sm text-gray-900">{client.ism}</td>
                       <td className="px-6 py-4 text-sm text-gray-900">{client.familya}</td>
                       <td className="px-6 py-4 text-sm text-gray-900">{client.telefon}</td>

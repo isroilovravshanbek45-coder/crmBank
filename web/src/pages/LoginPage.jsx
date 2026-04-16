@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { operatorLogin } from '../services/authService';
 
 const LoginPage = ({ onLogin }) => {
   const [showPassword, setShowPassword] = useState(false);
@@ -6,20 +7,21 @@ const LoginPage = ({ onLogin }) => {
     login: '',
     password: ''
   });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setLoading(true);
+    setError('');
 
-    // Login va parolni tekshirish (operator raqami login sifatida ishlatiladi)
-    const operatorNumber = formData.login;
-    const validOperators = ['401', '402', '403', '404', '405', '406', '407', '408', '409', '410'];
-
-    if (validOperators.includes(operatorNumber) && formData.password === '1234') {
-      // Operator raqamini localStorage ga saqlash
-      localStorage.setItem('bankCrmOperatorId', operatorNumber);
+    try {
+      await operatorLogin(formData.login, formData.password);
       onLogin(); // Dashboard ga o'tish
-    } else {
-      alert('Login yoki parol xato!');
+    } catch (error) {
+      setError(error.message || 'Login yoki parol xato!');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -37,6 +39,12 @@ const LoginPage = ({ onLogin }) => {
           <h1 className="text-3xl font-bold text-gray-800 mb-2">Bank CRM</h1>
           <p className="text-gray-600">Tizimga kirish</p>
         </div>
+
+        {error && (
+          <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded-lg text-sm">
+            {error}
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-6" autoComplete="off">
           {/* Login Input */}
@@ -98,9 +106,10 @@ const LoginPage = ({ onLogin }) => {
           {/* Submit Button */}
           <button
             type="submit"
-            className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 focus:ring-4 focus:ring-blue-300 transition duration-200"
+            disabled={loading}
+            className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 focus:ring-4 focus:ring-blue-300 transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Kirish
+            {loading ? 'Yuklanmoqda...' : 'Kirish'}
           </button>
         </form>
       </div>

@@ -1,119 +1,81 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { getAllClients } from '../../services/clientService';
+import { getAllOperators, getTopOperators } from '../../services/operatorService';
+import { logout } from '../../services/authService';
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
   const [clients, setClients] = useState([]);
   const [operators, setOperators] = useState([]);
+  const [topOperators, setTopOperators] = useState([]);
   const [selectedPeriod, setSelectedPeriod] = useState('all');
+  const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
     totalClients: 0,
     totalAmount: 0,
     approved: 0,
     pending: 0,
-    rejected: 0,
-    todayClients: 0,
-    thisWeekClients: 0,
-    thisMonthClients: 0
+    rejected: 0
   });
 
   useEffect(() => {
-    const savedClients = localStorage.getItem('bankCrmClients');
-    const savedOperators = localStorage.getItem('bankCrmOperators');
-
-    if (savedClients) {
-      const clientsData = JSON.parse(savedClients);
-      setClients(clientsData);
-      calculateStats(clientsData);
-    }
-
-    if (savedOperators) {
-      setOperators(JSON.parse(savedOperators));
-    } else {
-      const defaultOperators = Array.from({ length: 10 }, (_, i) => ({
-        id: 401 + i,
-        name: `Operator ${401 + i}`,
-        status: 'active',
-        clientCount: 0
-      }));
-      setOperators(defaultOperators);
-      localStorage.setItem('bankCrmOperators', JSON.stringify(defaultOperators));
-    }
+    loadData();
   }, []);
+
+  useEffect(() => {
+    if (clients.length > 0) {
+      calculateStats(clients);
+    }
+  }, [clients]);
+
+  const loadData = async () => {
+    try {
+      setLoading(true);
+
+      const [clientsRes, operatorsRes, topOperatorsRes] = await Promise.all([
+        getAllClients(),
+        getAllOperators(),
+        getTopOperators(5)
+      ]);
+
+      if (clientsRes.success) {
+        setClients(clientsRes.data);
+      }
+
+      if (operatorsRes.success) {
+        setOperators(operatorsRes.data);
+      }
+
+      if (topOperatorsRes.success) {
+        setTopOperators(topOperatorsRes.data);
+      }
+    } catch (error) {
+      console.error('Ma\'lumotlarni yuklashda xatolik:', error);
+      alert('Ma\'lumotlarni yuklashda xatolik yuz berdi');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const calculateStats = (clientsData) => {
     const total = clientsData.length;
-    const totalAmount = clientsData.filter(c => c.summa).reduce((sum, c) => sum + (parseFloat(c.summa) || 0), 0);
+    const totalAmount = clientsData.reduce((sum, c) => sum + (parseFloat(c.summa) || 0), 0);
     const approved = clientsData.filter(c => c.status === 'Tasdiqlangan').length;
     const pending = clientsData.filter(c => c.status === 'Jarayonda').length;
     const rejected = clientsData.filter(c => c.status === 'Rad etilgan').length;
-
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000);
-    const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
-    const monthAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
-
-    const todayClients = clientsData.filter(c => {
-      if (!c.createdAt) return false;
-      const createdDate = new Date(c.createdAt);
-      return createdDate >= today && createdDate < tomorrow;
-    }).length;
-
-    const thisWeekClients = clientsData.filter(c => {
-      if (!c.createdAt) return false;
-      const createdDate = new Date(c.createdAt);
-      return createdDate >= weekAgo;
-    }).length;
-
-    const thisMonthClients = clientsData.filter(c => {
-      if (!c.createdAt) return false;
-      const createdDate = new Date(c.createdAt);
-      return createdDate >= monthAgo;
-    }).length;
 
     setStats({
       totalClients: total,
       totalAmount,
       approved,
       pending,
-      rejected,
-      todayClients,
-      thisWeekClients,
-      thisMonthClients
+      rejected
     });
   };
-
-  const getOperatorStats = () => {
-    const operatorStats = {};
-
-    clients.forEach(client => {
-      const opId = client.operatorRaqam;
-      if (!operatorStats[opId]) {
-        operatorStats[opId] = {
-          total: 0,
-          approved: 0,
-          pending: 0,
-          rejected: 0,
-          totalAmount: 0
-        };
-      }
-
-      operatorStats[opId].total++;
-      operatorStats[opId].totalAmount += parseFloat(client.summa) || 0;
-
-      if (client.status === 'Tasdiqlangan') operatorStats[opId].approved++;
-      if (client.status === 'Jarayonda') operatorStats[opId].pending++;
-      if (client.status === 'Rad etilgan') operatorStats[opId].rejected++;
-    });
-
-    return operatorStats;
-  };
-
-  const operatorStats = getOperatorStats();
 
   const handleLogout = () => {
-    localStorage.removeItem('bankCrmAdminLoggedIn');
+    logout();
     navigate('/admin/login');
   };
 
@@ -148,79 +110,18 @@ const AdminDashboard = () => {
 
   const filteredClients = getFilteredClients();
 
-  // Tanlangan davr bo'yicha statistika
   const getPeriodStats = () => {
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000);
-    const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
-    const monthAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
-
-    let periodClients = [];
-
-    switch(selectedPeriod) {
-      case 'today':
-        periodClients = clients.filter(c => {
-          if (!c.createdAt) return false;
-          const createdDate = new Date(c.createdAt);
-          return createdDate >= today && createdDate < tomorrow;
-        });
-        break;
-      case 'week':
-        periodClients = clients.filter(c => {
-          if (!c.createdAt) return false;
-          return new Date(c.createdAt) >= weekAgo;
-        });
-        break;
-      case 'month':
-        periodClients = clients.filter(c => {
-          if (!c.createdAt) return false;
-          return new Date(c.createdAt) >= monthAgo;
-        });
-        break;
-      default:
-        periodClients = clients;
-    }
-
     return {
-      total: periodClients.length,
-      approved: periodClients.filter(c => c.status === 'Tasdiqlangan').length,
-      pending: periodClients.filter(c => c.status === 'Jarayonda').length,
-      rejected: periodClients.filter(c => c.status === 'Rad etilgan').length,
-      totalAmount: periodClients.reduce((sum, c) => sum + (parseFloat(c.summa) || 0), 0)
+      total: filteredClients.length,
+      approved: filteredClients.filter(c => c.status === 'Tasdiqlangan').length,
+      pending: filteredClients.filter(c => c.status === 'Jarayonda').length,
+      rejected: filteredClients.filter(c => c.status === 'Rad etilgan').length,
+      totalAmount: filteredClients.reduce((sum, c) => sum + (parseFloat(c.summa) || 0), 0)
     };
   };
 
   const periodStats = getPeriodStats();
 
-  const getTopOperators = () => {
-    return operators
-      .map(op => ({
-        ...op,
-        stats: operatorStats[op.id] || { total: 0, approved: 0, totalAmount: 0 }
-      }))
-      .sort((a, b) => {
-        // Avval tasdiqlangan mijozlar soni bo'yicha
-        if (b.stats.approved !== a.stats.approved) {
-          return b.stats.approved - a.stats.approved;
-        }
-        // Agar teng bo'lsa, jami mijozlar soni bo'yicha
-        if (b.stats.total !== a.stats.total) {
-          return b.stats.total - a.stats.total;
-        }
-        // Agar u ham teng bo'lsa, jami summa bo'yicha
-        if (b.stats.totalAmount !== a.stats.totalAmount) {
-          return b.stats.totalAmount - a.stats.totalAmount;
-        }
-        // Agar hammasi teng bo'lsa, operator ID bo'yicha (kichikdan kattaga)
-        return a.id - b.id;
-      })
-      .slice(0, 5);
-  };
-
-  const topOperators = getTopOperators();
-
-  // Oxirgi 24 soatlik mijozlar
   const getLast24HoursClients = () => {
     const now = new Date();
     const last24Hours = new Date(now.getTime() - 24 * 60 * 60 * 1000);
@@ -233,6 +134,17 @@ const AdminDashboard = () => {
   };
 
   const last24HoursClients = getLast24HoursClients();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-gray-200 border-t-blue-600 rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">Yuklanmoqda...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -438,7 +350,9 @@ const AdminDashboard = () => {
           <h2 className="text-lg font-bold text-gray-900 mb-6">Top 5 Eng yaxshi operatorlar</h2>
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             {topOperators.map((operator, index) => (
-              <div key={operator.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-all" style={{borderColor: index === 0 ? '#3B82F6' : ''}}>
+              <div key={operator.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-all cursor-pointer"
+                style={{borderColor: index === 0 ? '#3B82F6' : ''}}
+                onClick={() => navigate(`/admin/operator/${operator.id}`)}>
                 <div className="flex flex-col items-center text-center">
                   <div className="relative mb-3">
                     <div className={`w-14 h-14 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-md`}
@@ -487,7 +401,7 @@ const AdminDashboard = () => {
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {operators.map((operator) => {
-                  const stats = operatorStats[operator.id] || { total: 0, approved: 0, pending: 0, rejected: 0, totalAmount: 0 };
+                  const stats = operator.stats || { total: 0, approved: 0, pending: 0, rejected: 0, totalAmount: 0 };
                   const efficiency = stats.total > 0 ? ((stats.approved / stats.total) * 100).toFixed(1) : 0;
 
                   return (
@@ -583,7 +497,7 @@ const AdminDashboard = () => {
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {last24HoursClients.slice(-10).reverse().map((client) => (
-                  <tr key={client.id} className="hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => navigate(`/admin/client/${client.id}`)}>
+                  <tr key={client._id} className="hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => navigate(`/admin/client/${client._id}`)}>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full text-white flex items-center justify-center font-bold text-sm" style={{backgroundColor: '#3B82F6'}}>

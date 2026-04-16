@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { adminLogin } from '../../services/authService';
 
 const AdminLogin = () => {
   const navigate = useNavigate();
@@ -9,17 +10,20 @@ const AdminLogin = () => {
     password: ''
   });
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setLoading(true);
 
-    // Admin login va parolni tekshirish
-    if (formData.login === 'Nodir' && formData.password === 'Ipoteka') {
-      localStorage.setItem('bankCrmAdminLoggedIn', 'true');
+    try {
+      await adminLogin(formData.login, formData.password);
       navigate('/admin');
-    } else {
-      setError('Login yoki parol xato!');
+    } catch (error) {
+      setError(error.message || 'Login yoki parol xato!');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -108,12 +112,13 @@ const AdminLogin = () => {
           {/* Submit Button */}
           <button
             type="submit"
-            className="w-full text-white py-3 rounded-lg font-semibold focus:ring-4 transition duration-200 shadow-lg"
+            disabled={loading}
+            className="w-full text-white py-3 rounded-lg font-semibold focus:ring-4 transition duration-200 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
             style={{backgroundColor: '#3B82F6'}}
-            onMouseEnter={(e) => e.target.style.backgroundColor = '#2563EB'}
+            onMouseEnter={(e) => !loading && (e.target.style.backgroundColor = '#2563EB')}
             onMouseLeave={(e) => e.target.style.backgroundColor = '#3B82F6'}
           >
-            Kirish
+            {loading ? 'Yuklanmoqda...' : 'Kirish'}
           </button>
         </form>
 

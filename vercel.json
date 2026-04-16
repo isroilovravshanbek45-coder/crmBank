@@ -1,7 +1,4 @@
 {
-  "buildCommand": "cd web && npm ci && npm run build",
-  "outputDirectory": "web/dist",
-  "installCommand": "npm --version",
   "rewrites": [
     {
       "source": "/(.*)",

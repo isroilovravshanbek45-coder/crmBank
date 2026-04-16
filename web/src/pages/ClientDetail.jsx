@@ -1,23 +1,34 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { getClientById } from '../services/clientService';
 
 const ClientDetail = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const [client, setClient] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // LocalStorage dan klientni yuklash
-    const savedClients = localStorage.getItem('bankCrmClients');
-
-    if (savedClients) {
-      const clientsData = JSON.parse(savedClients);
-      const foundClient = clientsData.find(c => c.id === parseInt(id));
-      setClient(foundClient);
-    }
+    loadClient();
   }, [id]);
 
-  if (!client) {
+  const loadClient = async () => {
+    try {
+      setLoading(true);
+      const response = await getClientById(id);
+      if (response.success) {
+        setClient(response.data);
+      }
+    } catch (error) {
+      console.error('Mijozni yuklashda xatolik:', error);
+      alert('Mijozni yuklashda xatolik yuz berdi');
+      navigate(-1);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading || !client) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
@@ -66,7 +77,7 @@ const ClientDetail = () => {
               </div>
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">{client.ism} {client.familya}</h1>
-                <p className="text-sm text-gray-500">Mijoz ID: {client.id}</p>
+                <p className="text-sm text-gray-500">Mijoz tafsilotlari</p>
               </div>
             </div>
           </div>
