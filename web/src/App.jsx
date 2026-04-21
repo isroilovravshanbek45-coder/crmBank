@@ -1,5 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import LoginPage from './pages/LoginPage';
 import Dashboard from './pages/Dashboard';
 import AdminLogin from './pages/admin/AdminLogin';
@@ -12,23 +12,32 @@ import ClientDetail from './pages/ClientDetail';
 // Protected Route komponentlari
 const ProtectedRoute = ({ children }) => {
   const isLoggedIn = localStorage.getItem('bankCrmIsLoggedIn') === 'true';
-  return isLoggedIn ? children : <Navigate to="/" />;
+  const userRole = localStorage.getItem('bankCrmUserRole');
+
+  // Agar operator role bo'lmasa, login'ga yo'naltirish
+  if (!isLoggedIn || userRole !== 'operator') {
+    return <Navigate to="/" replace />;
+  }
+
+  return children;
 };
 
 const AdminProtectedRoute = ({ children }) => {
   const isAdminLoggedIn = localStorage.getItem('bankCrmAdminLoggedIn') === 'true';
-  return isAdminLoggedIn ? children : <Navigate to="/admin/login" />;
+  const userRole = localStorage.getItem('bankCrmUserRole');
+
+  // Agar admin role bo'lmasa, admin login'ga yo'naltirish
+  if (!isAdminLoggedIn || userRole !== 'admin') {
+    return <Navigate to="/admin/login" replace />;
+  }
+
+  return children;
 };
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(() => {
-    const savedLoginState = localStorage.getItem('bankCrmIsLoggedIn');
-    return savedLoginState === 'true';
+    return localStorage.getItem('bankCrmIsLoggedIn') === 'true';
   });
-
-  useEffect(() => {
-    localStorage.setItem('bankCrmIsLoggedIn', isLoggedIn);
-  }, [isLoggedIn]);
 
   const handleLogin = () => {
     setIsLoggedIn(true);
@@ -36,8 +45,7 @@ function App() {
 
   const handleLogout = () => {
     setIsLoggedIn(false);
-    localStorage.removeItem('bankCrmIsLoggedIn');
-    localStorage.removeItem('bankCrmOperatorId'); // Operator ID ni ham o'chirish
+    localStorage.clear();
   };
 
   return (
@@ -46,13 +54,25 @@ function App() {
         {/* CRM Routes */}
         <Route
           path="/"
-          element={isLoggedIn ? <Navigate to="/dashboard" /> : <LoginPage onLogin={handleLogin} />}
+          element={
+            isLoggedIn && localStorage.getItem('bankCrmUserRole') === 'operator'
+              ? <Navigate to="/dashboard" replace />
+              : <LoginPage onLogin={handleLogin} />
+          }
         />
         <Route
           path="/dashboard"
           element={
             <ProtectedRoute>
               <Dashboard onLogout={handleLogout} />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/client/:id"
+          element={
+            <ProtectedRoute>
+              <ClientDetail />
             </ProtectedRoute>
           }
         />
@@ -92,18 +112,8 @@ function App() {
           }
         />
 
-        {/* Operator Client Detail Route */}
-        <Route
-          path="/client/:id"
-          element={
-            <ProtectedRoute>
-              <ClientDetail />
-            </ProtectedRoute>
-          }
-        />
-
-        {/* Redirect noma'lum yo'llar uchun */}
-        <Route path="*" element={<Navigate to="/" />} />
+        {/* Catch all - redirect to home */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Router>
   );

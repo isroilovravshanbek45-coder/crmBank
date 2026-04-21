@@ -24,19 +24,61 @@ const Dashboard = ({ onLogout }) => {
 
   // API dan ma'lumotlarni yuklash
   useEffect(() => {
-    loadClients();
-  }, []);
+    const initDashboard = async () => {
+      // Token tekshirish
+      const token = localStorage.getItem('bankCrmToken');
+      if (!token) {
+        alert('Token topilmadi. Iltimos, qayta kiring.');
+        logout();
+        onLogout();
+        return;
+      }
+
+      // Ma'lumotlarni yuklash
+      try {
+        setLoading(true);
+        const response = await getOperatorClients();
+        if (response.success) {
+          const clientsData = response.data?.data || response.data || [];
+          setClients(clientsData);
+        }
+      } catch (error) {
+        console.error('Mijozlarni yuklashda xatolik:', error);
+        if (error.message && (error.message.includes('Token') || error.message.includes('operatorlar'))) {
+          alert('Autentifikatsiya xatosi. Iltimos, qayta kiring.');
+          logout();
+          onLogout();
+        } else {
+          alert('Mijozlarni yuklashda xatolik yuz berdi');
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    initDashboard();
+  }, []); // Component mount'da faqat bir marta ishga tushadi
 
   const loadClients = async () => {
     try {
       setLoading(true);
       const response = await getOperatorClients();
       if (response.success) {
-        setClients(response.data);
+        // Backend pagination format: { data: [...], pagination: {...} }
+        const clientsData = response.data?.data || response.data || [];
+        setClients(clientsData);
       }
     } catch (error) {
       console.error('Mijozlarni yuklashda xatolik:', error);
-      alert('Mijozlarni yuklashda xatolik yuz berdi');
+
+      // Agar 401 yoki 403 xatosi bo'lsa, logout qilish
+      if (error.message && (error.message.includes('Token') || error.message.includes('operatorlar'))) {
+        alert('Autentifikatsiya xatosi. Iltimos, qayta kiring.');
+        logout();
+        onLogout();
+      } else {
+        alert('Mijozlarni yuklashda xatolik yuz berdi');
+      }
     } finally {
       setLoading(false);
     }

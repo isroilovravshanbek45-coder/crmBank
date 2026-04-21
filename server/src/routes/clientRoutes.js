@@ -1,5 +1,9 @@
+/**
+ * Client Routes
+ * Mijozlar uchun endpoint'lar
+ */
+
 import express from 'express';
-import { body } from 'express-validator';
 import {
   getAllClients,
   getOperatorClients,
@@ -7,41 +11,109 @@ import {
   createClient,
   updateClient,
   deleteClient,
-  getStatistics
+  restoreClient,
+  searchClients,
+  getStatistics,
+  bulkUpdateClients,
+  exportClients
 } from '../controllers/clientController.js';
+import {
+  createClientValidation,
+  updateClientValidation,
+  queryValidation
+} from '../validators/clientValidator.js';
+import { validate } from '../middleware/validate.js';
 import { authenticateOperator, authenticateAdmin, authenticateUser } from '../middleware/auth.js';
+import { apiLimiter } from '../middleware/rateLimiter.js';
 
 const router = express.Router();
 
-// Validatsiya qoidalari
-const clientValidation = [
-  body('ism').trim().notEmpty().withMessage('Ism majburiy'),
-  body('familya').trim().notEmpty().withMessage('Familya majburiy'),
-  body('telefon').trim().notEmpty().withMessage('Telefon majburiy'),
-  body('hudud').trim().notEmpty().withMessage('Hudud majburiy'),
-  body('garov').trim().notEmpty().withMessage('Garov majburiy'),
-  body('summa').isNumeric().withMessage('Summa raqam bo\'lishi kerak')
-];
+// API limiter barcha route'larga qo'llash
+router.use(apiLimiter);
 
-// GET /api/clients - Barcha mijozlar (Admin uchun)
-router.get('/', authenticateAdmin, getAllClients);
+// ===== SPECIFIC ROUTES (yuqorida bo'lishi kerak) =====
 
-// GET /api/clients/operator - Operator mijozlari
-router.get('/operator', authenticateOperator, getOperatorClients);
+/**
+ * @route   GET /api/clients/operator
+ * @desc    Operator mijozlari (pagination bilan)
+ * @access  Private (Operator)
+ */
+router.get('/operator', authenticateOperator, queryValidation, validate, getOperatorClients);
 
-// GET /api/clients/statistics - Statistika
+/**
+ * @route   GET /api/clients/search
+ * @desc    Mijozlarni qidirish
+ * @access  Private (Operator & Admin)
+ */
+router.get('/search', authenticateUser, searchClients);
+
+/**
+ * @route   GET /api/clients/statistics
+ * @desc    Statistika olish
+ * @access  Private (Operator & Admin)
+ */
 router.get('/statistics', authenticateUser, getStatistics);
 
-// GET /api/clients/:id - Bitta mijoz
+/**
+ * @route   GET /api/clients/export
+ * @desc    Mijozlarni export qilish (CSV/JSON)
+ * @access  Private (Admin)
+ */
+router.get('/export', authenticateAdmin, exportClients);
+
+/**
+ * @route   PATCH /api/clients/bulk-update
+ * @desc    Ko'p mijozlarni bir vaqtda yangilash
+ * @access  Private (Admin)
+ */
+router.patch('/bulk-update', authenticateAdmin, bulkUpdateClients);
+
+/**
+ * @route   POST /api/clients/:id/restore
+ * @desc    O'chirilgan mijozni tiklash
+ * @access  Private (Admin)
+ */
+router.post('/:id/restore', authenticateAdmin, restoreClient);
+
+// ===== OPERATOR ROUTES =====
+
+/**
+ * @route   POST /api/clients
+ * @desc    Yangi mijoz qo'shish
+ * @access  Private (Operator)
+ */
+router.post('/', authenticateOperator, createClientValidation, validate, createClient);
+
+// ===== ADMIN ROUTES =====
+
+/**
+ * @route   GET /api/clients
+ * @desc    Barcha mijozlarni olish (pagination bilan)
+ * @access  Private (Admin)
+ */
+router.get('/', authenticateAdmin, queryValidation, validate, getAllClients);
+
+// ===== DYNAMIC ROUTES (oxirida bo'lishi kerak) =====
+
+/**
+ * @route   GET /api/clients/:id
+ * @desc    Bitta mijozni olish
+ * @access  Private (Operator & Admin)
+ */
 router.get('/:id', authenticateUser, getClientById);
 
-// POST /api/clients - Yangi mijoz qo'shish
-router.post('/', authenticateOperator, clientValidation, createClient);
+/**
+ * @route   PUT /api/clients/:id
+ * @desc    Mijozni yangilash
+ * @access  Private (Operator & Admin)
+ */
+router.put('/:id', authenticateUser, updateClientValidation, validate, updateClient);
 
-// PUT /api/clients/:id - Mijozni yangilash
-router.put('/:id', authenticateUser, updateClient);
-
-// DELETE /api/clients/:id - Mijozni o'chirish (Admin uchun)
+/**
+ * @route   DELETE /api/clients/:id
+ * @desc    Mijozni o'chirish (soft delete)
+ * @access  Private (Admin)
+ */
 router.delete('/:id', authenticateAdmin, deleteClient);
 
 export default router;

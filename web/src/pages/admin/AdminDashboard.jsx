@@ -40,15 +40,21 @@ const AdminDashboard = () => {
       ]);
 
       if (clientsRes.success) {
-        setClients(clientsRes.data);
+        // Backend pagination format: { data: { data: [...], pagination: {...} } }
+        const clientsData = clientsRes.data?.data || clientsRes.data || [];
+        setClients(Array.isArray(clientsData) ? clientsData : []);
       }
 
       if (operatorsRes.success) {
-        setOperators(operatorsRes.data);
+        // Backend format: { data: { count: N, data: [...] } }
+        const operatorsData = operatorsRes.data?.data || operatorsRes.data || [];
+        setOperators(Array.isArray(operatorsData) ? operatorsData : []);
       }
 
       if (topOperatorsRes.success) {
-        setTopOperators(topOperatorsRes.data);
+        // Backend format: { data: [...] }
+        const topOpsData = topOperatorsRes.data || [];
+        setTopOperators(Array.isArray(topOpsData) ? topOpsData : []);
       }
     } catch (error) {
       console.error('Ma\'lumotlarni yuklashda xatolik:', error);

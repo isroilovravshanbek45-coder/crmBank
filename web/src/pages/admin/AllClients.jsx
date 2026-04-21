@@ -21,8 +21,11 @@ const AllClients = () => {
       setLoading(true);
       const response = await getAllClients();
       if (response.success) {
-        setAllClients(response.data);
-        setFilteredClients(response.data);
+        // Backend pagination format: { data: { data: [...], pagination: {...} } }
+        const clientsData = response.data?.data || response.data || [];
+        const clients = Array.isArray(clientsData) ? clientsData : [];
+        setAllClients(clients);
+        setFilteredClients(clients);
       }
     } catch (error) {
       console.error('Mijozlarni yuklashda xatolik:', error);

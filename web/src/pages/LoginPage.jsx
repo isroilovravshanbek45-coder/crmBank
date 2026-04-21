@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { operatorLogin } from '../services/authService';
 
 const LoginPage = ({ onLogin }) => {
@@ -10,15 +10,42 @@ const LoginPage = ({ onLogin }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  // Component mount bo'lganda admin token'ni tozalash
+  useEffect(() => {
+    // Agar admin'dan chiqib operator sifatida kirmoqchi bo'lsa
+    const userRole = localStorage.getItem('bankCrmUserRole');
+    if (userRole === 'admin') {
+      // Admin token'larni tozalash
+      localStorage.clear();
+      console.log('🔄 Admin session cleared for operator login');
+    }
+  }, []);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError('');
 
     try {
-      await operatorLogin(formData.login, formData.password);
-      onLogin(); // Dashboard ga o'tish
+      const response = await operatorLogin(formData.login, formData.password);
+
+      // Token va role to'g'ri saqlanganini tekshirish
+      const savedRole = localStorage.getItem('bankCrmUserRole');
+      const savedToken = localStorage.getItem('bankCrmToken');
+
+      console.log('✅ Login response:', {
+        success: response.success,
+        role: savedRole,
+        hasToken: !!savedToken
+      });
+
+      if (response.success && savedRole === 'operator') {
+        onLogin(); // Dashboard ga o'tish
+      } else {
+        setError('Login muvaffaqiyatsiz. Qayta urinib ko\'ring.');
+      }
     } catch (error) {
+      console.error('❌ Login error:', error);
       setError(error.message || 'Login yoki parol xato!');
     } finally {
       setLoading(false);
@@ -37,7 +64,7 @@ const LoginPage = ({ onLogin }) => {
       <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-800 mb-2">Bank CRM</h1>
-          <p className="text-gray-600">Tizimga kirish</p>
+          <p className="text-gray-600">Operator tizimiga kirish</p>
         </div>
 
         {error && (
@@ -50,7 +77,7 @@ const LoginPage = ({ onLogin }) => {
           {/* Login Input */}
           <div>
             <label htmlFor="login" className="block text-sm font-medium text-gray-700 mb-2">
-              Login
+              Login (401-410)
             </label>
             <input
               type="text"
@@ -59,7 +86,7 @@ const LoginPage = ({ onLogin }) => {
               value={formData.login}
               onChange={handleChange}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
-              placeholder="Loginni kiriting"
+              placeholder="401"
               autoComplete="new-password"
               required
             />
@@ -78,7 +105,7 @@ const LoginPage = ({ onLogin }) => {
                 value={formData.password}
                 onChange={handleChange}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition pr-12"
-                placeholder="Parolni kiriting"
+                placeholder="1234"
                 autoComplete="new-password"
                 required
               />
@@ -112,6 +139,16 @@ const LoginPage = ({ onLogin }) => {
             {loading ? 'Yuklanmoqda...' : 'Kirish'}
           </button>
         </form>
+
+        {/* Admin link */}
+        <div className="mt-6 text-center">
+          <a
+            href="/admin/login"
+            className="text-sm text-blue-600 hover:text-blue-700 hover:underline"
+          >
+            Admin sifatida kirish →
+          </a>
+        </div>
       </div>
     </div>
   );

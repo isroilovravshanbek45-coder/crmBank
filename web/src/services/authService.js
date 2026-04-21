@@ -5,9 +5,11 @@ export const operatorLogin = async (login, password) => {
   const response = await post('/auth/operator/login', { login, password });
 
   if (response.success) {
-    localStorage.setItem('bankCrmToken', response.token);
-    localStorage.setItem('bankCrmOperatorId', response.user.operatorId);
-    localStorage.setItem('bankCrmUserRole', response.user.role);
+    // Backend response structure: { success, message, data: { token, user } }
+    const { token, user } = response.data;
+    localStorage.setItem('bankCrmToken', token);
+    localStorage.setItem('bankCrmOperatorId', user.operatorId);
+    localStorage.setItem('bankCrmUserRole', user.role);
     localStorage.setItem('bankCrmIsLoggedIn', 'true');
   }
 
@@ -19,8 +21,10 @@ export const adminLogin = async (login, password) => {
   const response = await post('/auth/admin/login', { login, password });
 
   if (response.success) {
-    localStorage.setItem('bankCrmToken', response.token);
-    localStorage.setItem('bankCrmUserRole', response.user.role);
+    // Backend response structure: { success, message, data: { token, user } }
+    const { token, user } = response.data;
+    localStorage.setItem('bankCrmToken', token);
+    localStorage.setItem('bankCrmUserRole', user.role);
     localStorage.setItem('bankCrmAdminLoggedIn', 'true');
   }
 
