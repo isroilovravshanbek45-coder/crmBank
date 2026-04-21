@@ -55,11 +55,7 @@ export const createClientValidation = [
     .notEmpty()
     .withMessage('Summa majburiy')
     .isNumeric()
-    .withMessage('Summa raqam bo\'lishi kerak')
-    .isFloat({ min: VALIDATION.MIN_AMOUNT, max: VALIDATION.MAX_AMOUNT })
-    .withMessage(
-      `Summa ${(VALIDATION.MIN_AMOUNT / 1000000).toFixed(0)}M dan ${(VALIDATION.MAX_AMOUNT / 1000000).toFixed(0)}M gacha bo\'lishi kerak`
-    ),
+    .withMessage('Summa raqam bo\'lishi kerak'),
 
   body('status')
     .optional()
@@ -115,11 +111,7 @@ export const updateClientValidation = [
   body('summa')
     .optional()
     .isNumeric()
-    .withMessage('Summa raqam bo\'lishi kerak')
-    .isFloat({ min: VALIDATION.MIN_AMOUNT, max: VALIDATION.MAX_AMOUNT })
-    .withMessage(
-      `Summa ${(VALIDATION.MIN_AMOUNT / 1000000).toFixed(0)}M dan ${(VALIDATION.MAX_AMOUNT / 1000000).toFixed(0)}M gacha bo\'lishi kerak`
-    ),
+    .withMessage('Summa raqam bo\'lishi kerak'),
 
   body('status')
     .optional()

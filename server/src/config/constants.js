@@ -48,8 +48,8 @@ export const RATE_LIMIT = {
 // Validation constraints
 export const VALIDATION = {
   PHONE_REGEX: /^\+998[0-9]{9}$/,
-  MIN_AMOUNT: 1000000, // 1 million
-  MAX_AMOUNT: 1000000000, // 1 billion
+  MIN_AMOUNT: 0, // No minimum limit
+  MAX_AMOUNT: Number.MAX_SAFE_INTEGER, // No maximum limit
   MIN_NAME_LENGTH: 2,
   MAX_NAME_LENGTH: 50,
   MIN_PASSWORD_LENGTH: 4,

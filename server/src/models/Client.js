@@ -44,9 +44,7 @@ const clientSchema = new mongoose.Schema(
     },
     summa: {
       type: Number,
-      required: [true, 'Summa majburiy'],
-      min: [1000000, 'Summa kamida 1,000,000 bo\'lishi kerak'],
-      max: [1000000000, 'Summa 1,000,000,000 dan oshmasligi kerak']
+      required: [true, 'Summa majburiy']
     },
     operatorRaqam: {
       type: String,
