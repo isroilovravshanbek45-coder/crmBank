@@ -1,125 +1,147 @@
 /**
- * Operator Model
- * Operatorlar uchun MongoDB schema
+ * Operator Model — PostgreSQL
+ * SQL query funksiyalari + bcrypt
  */
 
-import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
-import { OPERATOR_STATUS } from '../config/constants.js';
+import { query } from '../config/database.js';
 
-const operatorSchema = new mongoose.Schema(
-  {
-    operatorId: {
-      type: String,
-      required: [true, 'Operator ID majburiy'],
-      unique: true,
-      trim: true,
-      index: true
-    },
-    name: {
-      type: String,
-      required: [true, 'Ism majburiy'],
-      trim: true,
-      minlength: [2, 'Ism kamida 2 ta belgidan iborat bo\'lishi kerak'],
-      maxlength: [50, 'Ism 50 ta belgidan oshmasligi kerak']
-    },
-    password: {
-      type: String,
-      required: [true, 'Parol majburiy'],
-      minlength: [4, 'Parol kamida 4 ta belgidan iborat bo\'lishi kerak'],
-      select: false // Parolni default query'larda qaytarmaslik
-    },
-    status: {
-      type: String,
-      enum: {
-        values: Object.values(OPERATOR_STATUS),
-        message: '{VALUE} to\'g\'ri status emas'
-      },
-      default: OPERATOR_STATUS.ACTIVE,
-      index: true
-    },
-    lastLogin: {
-      type: Date,
-      default: null
-    },
-    loginAttempts: {
-      type: Number,
-      default: 0
-    },
-    lockUntil: {
-      type: Date,
-      default: null
-    }
+const Operator = {
+  /**
+   * OperatorId bo'yicha topish
+   */
+  async findByOperatorId(operatorId, includePassword = false) {
+    const fields = includePassword
+      ? '*'
+      : 'id, operator_id, name, status, last_login, login_attempts, lock_until, created_at, updated_at';
+    const result = await query(
+      `SELECT ${fields} FROM operators WHERE operator_id = $1`,
+      [operatorId]
+    );
+    return result.rows[0] || null;
   },
-  {
-    timestamps: true
-  }
-);
 
-// ===== INDEXES =====
-operatorSchema.index({ status: 1, operatorId: 1 });
+  /**
+   * ID bo'yicha topish
+   */
+  async findById(id) {
+    const result = await query(
+      'SELECT id, operator_id, name, status, last_login, created_at, updated_at FROM operators WHERE id = $1',
+      [id]
+    );
+    return result.rows[0] || null;
+  },
 
-// ===== VIRTUALS =====
+  /**
+   * Barcha operatorlarni olish
+   */
+  async findAll() {
+    const result = await query(
+      'SELECT id, operator_id, name, status, last_login, created_at, updated_at FROM operators ORDER BY operator_id'
+    );
+    return result.rows;
+  },
 
-// Operator locked bo'lsa
-operatorSchema.virtual('isLocked').get(function () {
-  return !!(this.lockUntil && this.lockUntil > Date.now());
-});
-
-// ===== INSTANCE METHODS =====
-
-/**
- * Parolni tekshirish
- */
-operatorSchema.methods.comparePassword = async function (candidatePassword) {
-  return await bcrypt.compare(candidatePassword, this.password);
-};
-
-/**
- * Login muvaffaqiyatli bo'lganda
- */
-operatorSchema.methods.onLoginSuccess = function () {
-  this.loginAttempts = 0;
-  this.lockUntil = null;
-  this.lastLogin = new Date();
-  return this.save();
-};
-
-/**
- * Login muvaffaqiyatsiz bo'lganda
- */
-operatorSchema.methods.onLoginFailure = function () {
-  this.loginAttempts += 1;
-
-  // 5 ta noto'g'ri urinishdan keyin 15 daqiqa bloklash
-  if (this.loginAttempts >= 5) {
-    this.lockUntil = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
-  }
-
-  return this.save();
-};
-
-// ===== MIDDLEWARE (HOOKS) =====
-
-/**
- * Pre-save: Parolni hash qilish
- */
-operatorSchema.pre('save', async function (next) {
-  // Agar parol o'zgartirilmagan bo'lsa, skip qilish
-  if (!this.isModified('password')) {
-    return next();
-  }
-
-  try {
-    // Parolni hash qilish
+  /**
+   * Yangi operator yaratish
+   */
+  async create({ operatorId, name, password, status = 'active' }) {
     const salt = await bcrypt.genSalt(12);
-    this.password = await bcrypt.hash(this.password, salt);
-    next();
-  } catch (error) {
-    next(error);
-  }
-});
+    const hashedPassword = await bcrypt.hash(password, salt);
 
-const Operator = mongoose.model('Operator', operatorSchema);
+    const result = await query(
+      `INSERT INTO operators (operator_id, name, password, status)
+       VALUES ($1, $2, $3, $4)
+       RETURNING id, operator_id, name, status, created_at`,
+      [operatorId, name, hashedPassword, status]
+    );
+    return result.rows[0];
+  },
+
+  /**
+   * Parolni tekshirish
+   */
+  async comparePassword(plainPassword, hashedPassword) {
+    return bcrypt.compare(plainPassword, hashedPassword);
+  },
+
+  /**
+   * Login muvaffaqiyatli
+   */
+  async onLoginSuccess(id) {
+    const result = await query(
+      `UPDATE operators SET login_attempts = 0, lock_until = NULL, last_login = NOW(), updated_at = NOW()
+       WHERE id = $1 RETURNING *`,
+      [id]
+    );
+    return result.rows[0];
+  },
+
+  /**
+   * Login muvaffaqiyatsiz
+   */
+  async onLoginFailure(id, currentAttempts) {
+    const newAttempts = currentAttempts + 1;
+    const lockUntil = newAttempts >= 5
+      ? new Date(Date.now() + 15 * 60 * 1000)
+      : null;
+
+    const result = await query(
+      `UPDATE operators SET login_attempts = $1, lock_until = $2, updated_at = NOW()
+       WHERE id = $3 RETURNING *`,
+      [newAttempts, lockUntil, id]
+    );
+    return result.rows[0];
+  },
+
+  /**
+   * Lock tekshirish
+   */
+  isLocked(operator) {
+    return !!(operator.lock_until && new Date(operator.lock_until) > new Date());
+  },
+
+  /**
+   * Operatorni yangilash
+   */
+  async update(operatorId, data) {
+    const fields = [];
+    const values = [];
+    let paramIndex = 1;
+
+    if (data.name) {
+      fields.push(`name = $${paramIndex++}`);
+      values.push(data.name);
+    }
+    if (data.status) {
+      fields.push(`status = $${paramIndex++}`);
+      values.push(data.status);
+    }
+
+    if (fields.length === 0) return null;
+
+    values.push(operatorId);
+    const result = await query(
+      `UPDATE operators SET ${fields.join(', ')}, updated_at = NOW()
+       WHERE operator_id = $${paramIndex}
+       RETURNING id, operator_id, name, status, last_login, created_at, updated_at`,
+      values
+    );
+    return result.rows[0] || null;
+  },
+
+  /**
+   * Parolni yangilash
+   */
+  async updatePassword(operatorId, newPassword) {
+    const salt = await bcrypt.genSalt(12);
+    const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+    await query(
+      'UPDATE operators SET password = $1, updated_at = NOW() WHERE operator_id = $2',
+      [hashedPassword, operatorId]
+    );
+  }
+};
 
 export default Operator;

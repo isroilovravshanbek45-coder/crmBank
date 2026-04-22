@@ -11,14 +11,25 @@ const AllClients = () => {
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterOperator, setFilterOperator] = useState('all');
   const [loading, setLoading] = useState(true);
+  const [initialLoad, setInitialLoad] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     loadClients();
   }, []);
 
   const loadClients = async () => {
+    // Agar yuklanayotgan bo'lsa, qayta yuklashni oldini olish
+    if (refreshing) return;
+
     try {
-      setLoading(true);
+      // Faqat birinchi yuklashda loading spinner ko'rsatish
+      if (initialLoad) {
+        setLoading(true);
+      } else {
+        setRefreshing(true);
+      }
+
       const response = await getAllClients();
       if (response.success) {
         // Backend pagination format: { data: { data: [...], pagination: {...} } }
@@ -29,9 +40,14 @@ const AllClients = () => {
       }
     } catch (error) {
       console.error('Mijozlarni yuklashda xatolik:', error);
-      alert('Mijozlarni yuklashda xatolik yuz berdi');
+      // Faqat birinchi yuklashda alert ko'rsatish
+      if (initialLoad) {
+        alert('Mijozlarni yuklashda xatolik yuz berdi');
+      }
     } finally {
       setLoading(false);
+      setRefreshing(false);
+      setInitialLoad(false);
     }
   };
 
@@ -216,18 +232,32 @@ const AllClients = () => {
                 <p className="text-sm text-gray-500 mt-1">Jami: {filteredClients.length} ta mijoz</p>
               </div>
             </div>
-            <button
-              onClick={exportToExcel}
-              className="flex items-center gap-2 px-5 py-2.5 text-white rounded-lg font-medium transition-colors"
-              style={{backgroundColor: '#22C55E'}}
-              onMouseEnter={(e) => e.target.style.backgroundColor = '#16A34A'}
-              onMouseLeave={(e) => e.target.style.backgroundColor = '#22C55E'}
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              Excel yuklash
-            </button>
+            <div className="flex gap-3">
+              <button
+                onClick={() => loadClients()}
+                disabled={refreshing}
+                className={`flex items-center gap-2 px-5 py-2.5 bg-white border border-gray-300 rounded-lg font-medium transition-colors ${
+                  refreshing ? 'opacity-50 cursor-not-allowed text-gray-400' : 'text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                <svg className={`w-5 h-5 ${refreshing ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                {refreshing ? 'Yuklanmoqda...' : 'Yangilash'}
+              </button>
+              <button
+                onClick={exportToExcel}
+                className="flex items-center gap-2 px-5 py-2.5 text-white rounded-lg font-medium transition-colors"
+                style={{backgroundColor: '#22C55E'}}
+                onMouseEnter={(e) => e.target.style.backgroundColor = '#16A34A'}
+                onMouseLeave={(e) => e.target.style.backgroundColor = '#22C55E'}
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Excel yuklash
+              </button>
+            </div>
           </div>
         </div>
       </header>

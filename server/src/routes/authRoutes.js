@@ -25,17 +25,16 @@ const router = express.Router();
  * @desc    Operator login
  * @access  Public
  */
-// Development: Rate limiter o'chirilgan (test uchun)
-// Production'da loginLimiter'ni qayta yoqing!
-router.post('/operator/login', loginValidation, validate, operatorLogin);
+// Login rate limiter qo'shilgan - brute-force himoya
+router.post('/operator/login', loginLimiter, loginValidation, validate, operatorLogin);
 
 /**
  * @route   POST /api/auth/admin/login
  * @desc    Admin login
  * @access  Public
  */
-// Development: Rate limiter o'chirilgan (test uchun)
-router.post('/admin/login', loginValidation, validate, adminLogin);
+// Login rate limiter qo'shilgan - brute-force himoya
+router.post('/admin/login', loginLimiter, loginValidation, validate, adminLogin);
 
 /**
  * @route   GET /api/auth/verify

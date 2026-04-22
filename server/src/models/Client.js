@@ -1,263 +1,317 @@
 /**
- * Client Model
- * Mijozlar uchun MongoDB schema va optimized indexes
+ * Client Model — PostgreSQL
+ * CRUD, aggregation, search, soft-delete
  */
 
-import mongoose from 'mongoose';
+import { query } from '../config/database.js';
 import { CLIENT_STATUS } from '../config/constants.js';
 
-const clientSchema = new mongoose.Schema(
-  {
-    ism: {
-      type: String,
-      required: [true, 'Ism majburiy'],
-      trim: true,
-      minlength: [2, 'Ism kamida 2 ta belgidan iborat bo\'lishi kerak'],
-      maxlength: [50, 'Ism 50 ta belgidan oshmasligi kerak']
-    },
-    familya: {
-      type: String,
-      required: [true, 'Familya majburiy'],
-      trim: true,
-      minlength: [2, 'Familya kamida 2 ta belgidan iborat bo\'lishi kerak'],
-      maxlength: [50, 'Familya 50 ta belgidan oshmasligi kerak']
-    },
-    telefon: {
-      type: String,
-      required: [true, 'Telefon majburiy'],
-      trim: true,
-      match: [/^\+998[0-9]{9}$/, 'Telefon raqami noto\'g\'ri formatda']
-    },
-    hudud: {
-      type: String,
-      required: [true, 'Hudud majburiy'],
-      trim: true,
-      minlength: [2, 'Hudud kamida 2 ta belgidan iborat bo\'lishi kerak'],
-      maxlength: [100, 'Hudud 100 ta belgidan oshmasligi kerak']
-    },
-    garov: {
-      type: String,
-      required: [true, 'Garov majburiy'],
-      trim: true,
-      minlength: [2, 'Garov kamida 2 ta belgidan iborat bo\'lishi kerak'],
-      maxlength: [200, 'Garov 200 ta belgidan oshmasligi kerak']
-    },
-    summa: {
-      type: Number,
-      required: [true, 'Summa majburiy']
-    },
-    operatorRaqam: {
-      type: String,
-      required: [true, 'Operator raqami majburiy'],
-      index: true
-    },
-    status: {
-      type: String,
-      enum: {
-        values: Object.values(CLIENT_STATUS),
-        message: '{VALUE} to\'g\'ri status emas'
-      },
-      default: CLIENT_STATUS.PENDING,
-      index: true
-    },
-    comment: {
-      type: String,
-      default: '',
-      maxlength: [500, 'Izoh 500 ta belgidan oshmasligi kerak']
-    },
-    deleted: {
-      type: Boolean,
-      default: false,
-      index: true
-    },
-    deletedAt: {
-      type: Date,
-      default: null
+const Client = {
+  /**
+   * Barcha mijozlarni olish (pagination bilan)
+   */
+  async findAll({ page = 1, limit = 100, status, operatorId, sortBy = 'created_at', sortOrder = 'DESC' } = {}) {
+    const conditions = ['deleted = false'];
+    const values = [];
+    let paramIndex = 1;
+
+    if (status) {
+      conditions.push(`status = $${paramIndex++}`);
+      values.push(status);
     }
+    if (operatorId) {
+      conditions.push(`operator_raqam = $${paramIndex++}`);
+      values.push(operatorId);
+    }
+
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+    const offset = (page - 1) * limit;
+
+    // Count query
+    const countResult = await query(
+      `SELECT COUNT(*) FROM clients ${whereClause}`,
+      values
+    );
+    const total = parseInt(countResult.rows[0].count);
+
+    // Data query
+    values.push(limit);
+    values.push(offset);
+    const dataResult = await query(
+      `SELECT id, ism, familya, telefon, hudud, garov, summa, operator_raqam AS "operatorRaqam",
+              status, comment, created_at AS "createdAt", updated_at AS "updatedAt"
+       FROM clients ${whereClause}
+       ORDER BY ${sortBy} ${sortOrder}
+       LIMIT $${paramIndex++} OFFSET $${paramIndex}`,
+      values
+    );
+
+    return {
+      data: dataResult.rows.map(row => ({ ...row, _id: row.id })),
+      pagination: {
+        total,
+        page,
+        limit,
+        pages: Math.ceil(total / limit)
+      }
+    };
   },
-  {
-    timestamps: true, // createdAt va updatedAt avtomatik qo'shiladi
-    toJSON: { virtuals: true },
-    toObject: { virtuals: true }
-  }
-);
 
-// ===== INDEXES =====
+  /**
+   * Operator mijozlarini olish
+   */
+  async findByOperator(operatorId, { page = 1, limit = 100 } = {}) {
+    return this.findAll({ operatorId, page, limit });
+  },
 
-// Compound indexes for better query performance
-clientSchema.index({ operatorRaqam: 1, status: 1 });
-clientSchema.index({ operatorRaqam: 1, createdAt: -1 });
-clientSchema.index({ status: 1, createdAt: -1 });
-clientSchema.index({ createdAt: -1 });
-clientSchema.index({ deleted: 1, createdAt: -1 });
+  /**
+   * ID bo'yicha topish
+   */
+  async findById(id) {
+    const result = await query(
+      `SELECT id, ism, familya, telefon, hudud, garov, summa, operator_raqam AS "operatorRaqam",
+              status, comment, deleted, created_at AS "createdAt", updated_at AS "updatedAt"
+       FROM clients WHERE id = $1 AND deleted = false`,
+      [id]
+    );
+    // Frontend _id kutadi, shuning uchun alias qo'shamiz
+    const row = result.rows[0];
+    if (row) row._id = row.id;
+    return row || null;
+  },
 
-// Text index for search functionality
-clientSchema.index({
-  ism: 'text',
-  familya: 'text',
-  telefon: 'text',
-  hudud: 'text'
-});
+  /**
+   * Yangi mijoz yaratish
+   */
+  async create({ ism, familya, telefon, hudud, garov, summa, operatorRaqam, status = CLIENT_STATUS.PENDING, comment = '' }) {
+    // Telefon formatlash
+    telefon = Client.formatPhone(telefon);
 
-// ===== VIRTUALS =====
+    const result = await query(
+      `INSERT INTO clients (ism, familya, telefon, hudud, garov, summa, operator_raqam, status, comment)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+       RETURNING id, ism, familya, telefon, hudud, garov, summa, operator_raqam AS "operatorRaqam",
+                 status, comment, created_at AS "createdAt", updated_at AS "updatedAt"`,
+      [ism, familya, telefon, hudud, garov, summa, operatorRaqam, status, comment]
+    );
+    const row = result.rows[0];
+    if (row) row._id = row.id;
+    return row;
+  },
 
-// To'liq ism
-clientSchema.virtual('fullName').get(function () {
-  return `${this.ism} ${this.familya}`;
-});
+  /**
+   * Mijozni yangilash
+   */
+  async update(id, data) {
+    const allowedFields = ['ism', 'familya', 'telefon', 'hudud', 'garov', 'summa', 'status', 'comment'];
+    const fields = [];
+    const values = [];
+    let paramIndex = 1;
 
-// ===== QUERY HELPERS =====
-
-// Soft deleted bo'lmaganlarni olish
-clientSchema.query.notDeleted = function () {
-  return this.where({ deleted: false });
-};
-
-// Status bo'yicha filter
-clientSchema.query.byStatus = function (status) {
-  return this.where({ status });
-};
-
-// Operator bo'yicha filter
-clientSchema.query.byOperator = function (operatorId) {
-  return this.where({ operatorRaqam: operatorId });
-};
-
-// ===== INSTANCE METHODS =====
-
-/**
- * Soft delete
- */
-clientSchema.methods.softDelete = function () {
-  this.deleted = true;
-  this.deletedAt = new Date();
-  return this.save();
-};
-
-/**
- * Restore soft deleted client
- */
-clientSchema.methods.restore = function () {
-  this.deleted = false;
-  this.deletedAt = null;
-  return this.save();
-};
-
-// ===== STATIC METHODS =====
-
-/**
- * Operator bo'yicha statistika
- */
-clientSchema.statics.getOperatorStats = async function (operatorId) {
-  const stats = await this.aggregate([
-    {
-      $match: {
-        operatorRaqam: operatorId,
-        deleted: false
-      }
-    },
-    {
-      $group: {
-        _id: '$status',
-        count: { $sum: 1 },
-        totalAmount: { $sum: '$summa' }
+    for (const key of allowedFields) {
+      if (data[key] !== undefined) {
+        const dbField = key === 'operatorRaqam' ? 'operator_raqam' : key;
+        if (key === 'telefon') {
+          fields.push(`${dbField} = $${paramIndex++}`);
+          values.push(Client.formatPhone(data[key]));
+        } else {
+          fields.push(`${dbField} = $${paramIndex++}`);
+          values.push(data[key]);
+        }
       }
     }
-  ]);
 
-  return stats;
-};
+    if (fields.length === 0) return null;
 
-/**
- * Barcha operatorlar statistikasi (Optimized - N+1 query muammosini hal qiladi)
- */
-clientSchema.statics.getAllOperatorsStats = async function () {
-  const stats = await this.aggregate([
-    {
-      $match: { deleted: false }
-    },
-    {
-      $group: {
-        _id: '$operatorRaqam',
-        total: { $sum: 1 },
-        approved: {
-          $sum: {
-            $cond: [{ $eq: ['$status', CLIENT_STATUS.APPROVED] }, 1, 0]
-          }
-        },
-        pending: {
-          $sum: {
-            $cond: [{ $eq: ['$status', CLIENT_STATUS.PENDING] }, 1, 0]
-          }
-        },
-        rejected: {
-          $sum: {
-            $cond: [{ $eq: ['$status', CLIENT_STATUS.REJECTED] }, 1, 0]
-          }
-        },
-        totalAmount: { $sum: '$summa' }
-      }
-    },
-    {
-      $sort: { approved: -1, total: -1 }
+    values.push(id);
+    const result = await query(
+      `UPDATE clients SET ${fields.join(', ')}
+       WHERE id = $${paramIndex} AND deleted = false
+       RETURNING id, ism, familya, telefon, hudud, garov, summa, operator_raqam AS "operatorRaqam",
+                 status, comment, created_at AS "createdAt", updated_at AS "updatedAt"`,
+      values
+    );
+    const row = result.rows[0];
+    if (row) row._id = row.id;
+    return row || null;
+  },
+
+  /**
+   * Soft delete
+   */
+  async softDelete(id) {
+    const result = await query(
+      `UPDATE clients SET deleted = true, deleted_at = NOW()
+       WHERE id = $1 AND deleted = false
+       RETURNING id`,
+      [id]
+    );
+    return result.rowCount > 0;
+  },
+
+  /**
+   * Restore
+   */
+  async restore(id) {
+    const result = await query(
+      `UPDATE clients SET deleted = false, deleted_at = NULL
+       WHERE id = $1 RETURNING id`,
+      [id]
+    );
+    return result.rowCount > 0;
+  },
+
+  /**
+   * Operator statistikasi — bitta SQL query bilan
+   */
+  async getOperatorStats(operatorId) {
+    const result = await query(
+      `SELECT
+        COUNT(*) AS total,
+        COUNT(*) FILTER (WHERE status = 'Tasdiqlangan') AS approved,
+        COUNT(*) FILTER (WHERE status = 'Jarayonda') AS pending,
+        COUNT(*) FILTER (WHERE status = 'Rad etilgan') AS rejected,
+        COALESCE(SUM(summa), 0) AS "totalAmount"
+       FROM clients
+       WHERE operator_raqam = $1 AND deleted = false`,
+      [operatorId]
+    );
+    const row = result.rows[0];
+    return {
+      total: parseInt(row.total),
+      approved: parseInt(row.approved),
+      pending: parseInt(row.pending),
+      rejected: parseInt(row.rejected),
+      totalAmount: parseFloat(row.totalAmount)
+    };
+  },
+
+  /**
+   * Barcha operatorlar statistikasi — bitta SQL query (N+1 yo'q!)
+   */
+  async getAllOperatorsStats() {
+    const result = await query(
+      `SELECT
+        operator_raqam AS "_id",
+        COUNT(*) AS total,
+        COUNT(*) FILTER (WHERE status = 'Tasdiqlangan') AS approved,
+        COUNT(*) FILTER (WHERE status = 'Jarayonda') AS pending,
+        COUNT(*) FILTER (WHERE status = 'Rad etilgan') AS rejected,
+        COALESCE(SUM(summa), 0) AS "totalAmount"
+       FROM clients
+       WHERE deleted = false
+       GROUP BY operator_raqam
+       ORDER BY approved DESC, total DESC`
+    );
+    return result.rows.map(row => ({
+      _id: row._id,
+      total: parseInt(row.total),
+      approved: parseInt(row.approved),
+      pending: parseInt(row.pending),
+      rejected: parseInt(row.rejected),
+      totalAmount: parseFloat(row.totalAmount)
+    }));
+  },
+
+  /**
+   * Umumiy statistika
+   */
+  async getOverallStats() {
+    const result = await query(
+      `SELECT
+        COUNT(*) AS total,
+        COUNT(*) FILTER (WHERE status = 'Tasdiqlangan') AS approved,
+        COUNT(*) FILTER (WHERE status = 'Jarayonda') AS pending,
+        COUNT(*) FILTER (WHERE status = 'Rad etilgan') AS rejected,
+        COALESCE(SUM(summa), 0) AS "totalAmount"
+       FROM clients WHERE deleted = false`
+    );
+    const row = result.rows[0];
+    return {
+      total: parseInt(row.total),
+      approved: parseInt(row.approved),
+      pending: parseInt(row.pending),
+      rejected: parseInt(row.rejected),
+      totalAmount: parseFloat(row.totalAmount)
+    };
+  },
+
+  /**
+   * Search — PostgreSQL full-text search
+   */
+  async search(searchTerm, { operatorId, status, limit = 20 } = {}) {
+    const conditions = ['deleted = false'];
+    const values = [];
+    let paramIndex = 1;
+
+    // Full text search
+    conditions.push(`search_vector @@ to_tsquery('simple', $${paramIndex++})`);
+    values.push(searchTerm.split(/\s+/).join(' & '));
+
+    if (operatorId) {
+      conditions.push(`operator_raqam = $${paramIndex++}`);
+      values.push(operatorId);
     }
-  ]);
+    if (status) {
+      conditions.push(`status = $${paramIndex++}`);
+      values.push(status);
+    }
 
-  return stats;
-};
+    values.push(limit);
+    const result = await query(
+      `SELECT id, ism, familya, telefon, hudud, garov, summa, operator_raqam AS "operatorRaqam",
+              status, comment, created_at AS "createdAt"
+       FROM clients
+       WHERE ${conditions.join(' AND ')}
+       ORDER BY ts_rank(search_vector, to_tsquery('simple', $1)) DESC
+       LIMIT $${paramIndex}`,
+      values
+    );
+    return result.rows.map(row => ({ ...row, _id: row.id }));
+  },
 
-/**
- * Search clients
- */
-clientSchema.statics.searchClients = async function (searchTerm, options = {}) {
-  const query = {
-    deleted: false,
-    $text: { $search: searchTerm }
-  };
+  /**
+   * Bulk update
+   */
+  async bulkUpdate(ids, updateData) {
+    const allowedFields = ['status', 'comment'];
+    const fields = [];
+    const values = [];
+    let paramIndex = 1;
 
-  if (options.operatorId) {
-    query.operatorRaqam = options.operatorId;
-  }
-
-  if (options.status) {
-    query.status = options.status;
-  }
-
-  return this.find(query)
-    .sort({ score: { $meta: 'textScore' } })
-    .limit(options.limit || 20);
-};
-
-// ===== MIDDLEWARE (HOOKS) =====
-
-// Pre-save: telefon raqamini formatlash
-clientSchema.pre('save', function (next) {
-  if (this.isModified('telefon')) {
-    // Bo'sh joylarni olib tashlash
-    this.telefon = this.telefon.replace(/\s/g, '');
-
-    // +998 qo'shish agar yo'q bo'lsa
-    if (!this.telefon.startsWith('+998')) {
-      if (this.telefon.startsWith('998')) {
-        this.telefon = '+' + this.telefon;
-      } else if (this.telefon.length === 9) {
-        this.telefon = '+998' + this.telefon;
+    for (const key of allowedFields) {
+      if (updateData[key] !== undefined) {
+        fields.push(`${key} = $${paramIndex++}`);
+        values.push(updateData[key]);
       }
     }
+
+    if (fields.length === 0) return 0;
+
+    values.push(ids);
+    const result = await query(
+      `UPDATE clients SET ${fields.join(', ')}
+       WHERE id = ANY($${paramIndex}) AND deleted = false`,
+      values
+    );
+    return result.rowCount;
+  },
+
+  /**
+   * Telefon formatlash
+   */
+  formatPhone(telefon) {
+    if (!telefon) return telefon;
+    telefon = telefon.replace(/\s/g, '');
+    if (!telefon.startsWith('+998')) {
+      if (telefon.startsWith('998')) {
+        telefon = '+' + telefon;
+      } else if (telefon.length === 9) {
+        telefon = '+998' + telefon;
+      }
+    }
+    return telefon;
   }
-
-  next();
-});
-
-// Pre-find: faqat o'chirilmaganlarni olish (default)
-clientSchema.pre(/^find/, function (next) {
-  // Agar explicitly deleted: true query qilinmasa, faqat o'chirilmaganlarni ko'rsatish
-  if (this.getQuery().deleted === undefined) {
-    this.where({ deleted: false });
-  }
-  next();
-});
-
-const Client = mongoose.model('Client', clientSchema);
+};
 
 export default Client;

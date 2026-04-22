@@ -1,104 +1,122 @@
 /**
- * Authentication Middleware
- * JWT token verification va role-based access control
+ * Auth Middleware — PostgreSQL
+ * JWT token tekshirish va role-based access control
  */
 
 import jwt from 'jsonwebtoken';
+import Operator from '../models/Operator.js';
+import Admin from '../models/Admin.js';
 import { UnauthorizedError, ForbiddenError } from '../utils/errors.js';
 import { ERROR_MESSAGES, USER_ROLES } from '../config/constants.js';
-import { asyncHandler } from '../utils/asyncHandler.js';
-import logger from '../config/logger.js';
 
 /**
- * Token'ni extract qilish
- * Cookie yoki Authorization header'dan oladi (dual support)
+ * Token olish (Header yoki Cookie dan)
  */
 const extractToken = (req) => {
-  // 1. Cookie'dan token olishga harakat qilish (HTTP-Only cookie uchun)
-  if (req.cookies && req.cookies.token) {
-    logger.debug('Token extracted from cookie');
-    return req.cookies.token;
+  // 1. Authorization header
+  if (req.headers.authorization?.startsWith('Bearer ')) {
+    return req.headers.authorization.split(' ')[1];
   }
 
-  // 2. Authorization header'dan token olish (localStorage uchun)
-  const authHeader = req.headers.authorization;
-
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    throw new UnauthorizedError(ERROR_MESSAGES.TOKEN_MISSING);
+  // 2. Cookie
+  if (req.cookies?.bankCrmToken) {
+    return req.cookies.bankCrmToken;
   }
 
-  logger.debug('Token extracted from Authorization header');
-  return authHeader.split(' ')[1];
+  return null;
 };
 
 /**
- * Token'ni verify qilish
+ * JWT token verify va user attach qilish
  */
-const verifyToken = (token) => {
+const verifyAndAttachUser = async (req) => {
+  const token = extractToken(req);
+
+  if (!token) {
+    throw new UnauthorizedError(ERROR_MESSAGES.TOKEN_MISSING);
+  }
+
   try {
-    return jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    req.user = decoded;
+    return decoded;
   } catch (error) {
-    logger.error('JWT verification failed:', error);
+    if (error.name === 'TokenExpiredError') {
+      throw new UnauthorizedError(ERROR_MESSAGES.TOKEN_EXPIRED);
+    }
     throw new UnauthorizedError(ERROR_MESSAGES.TOKEN_INVALID);
   }
 };
 
 /**
- * Base authentication middleware
- */
-export const authenticate = asyncHandler(async (req, res, next) => {
-  const token = extractToken(req);
-  const decoded = verifyToken(token);
-
-  req.user = decoded;
-  next();
-});
-
-/**
  * Operator autentifikatsiyasi
  */
-export const authenticateOperator = asyncHandler(async (req, res, next) => {
-  const token = extractToken(req);
-  const decoded = verifyToken(token);
+export const authenticateOperator = async (req, res, next) => {
+  try {
+    const decoded = await verifyAndAttachUser(req);
 
-  // Debug logging
-  logger.info('Operator auth attempt:', {
-    hasToken: !!token,
-    decodedRole: decoded.role,
-    expectedRole: USER_ROLES.OPERATOR,
-    operatorId: decoded.operatorId
-  });
+    if (decoded.role !== USER_ROLES.OPERATOR) {
+      throw new ForbiddenError('Faqat operatorlar uchun');
+    }
 
-  if (decoded.role !== USER_ROLES.OPERATOR) {
-    throw new ForbiddenError(ERROR_MESSAGES.OPERATOR_ONLY);
+    // Operator mavjudligini tekshirish
+    const operator = await Operator.findByOperatorId(decoded.operatorId);
+    if (!operator || operator.status !== 'active') {
+      throw new UnauthorizedError('Operator topilmadi yoki bloklangan');
+    }
+
+    next();
+  } catch (error) {
+    next(error);
   }
-
-  req.user = decoded;
-  next();
-});
+};
 
 /**
  * Admin autentifikatsiyasi
  */
-export const authenticateAdmin = asyncHandler(async (req, res, next) => {
-  const token = extractToken(req);
-  const decoded = verifyToken(token);
+export const authenticateAdmin = async (req, res, next) => {
+  try {
+    const decoded = await verifyAndAttachUser(req);
 
-  if (decoded.role !== USER_ROLES.ADMIN) {
-    throw new ForbiddenError(ERROR_MESSAGES.ADMIN_ONLY);
+    if (decoded.role !== USER_ROLES.ADMIN) {
+      throw new ForbiddenError('Faqat adminlar uchun');
+    }
+
+    // Admin mavjudligini tekshirish
+    const admin = await Admin.findByUsername(decoded.username);
+    if (!admin || admin.status !== 'active') {
+      throw new UnauthorizedError('Admin topilmadi yoki bloklangan');
+    }
+
+    next();
+  } catch (error) {
+    next(error);
   }
-
-  req.user = decoded;
-  next();
-});
+};
 
 /**
- * Operator yoki Admin (ikkalasi ham kirishi mumkin)
+ * Operator yoki Admin autentifikatsiyasi
  */
-export const authenticateUser = asyncHandler(async (req, res, next) => {
-  const token = extractToken(req);
-  const decoded = verifyToken(token);
+export const authenticateAny = async (req, res, next) => {
+  try {
+    const decoded = await verifyAndAttachUser(req);
 
-  req.user = decoded;
-  next();
-});
+    if (decoded.role === USER_ROLES.OPERATOR) {
+      const operator = await Operator.findByOperatorId(decoded.operatorId);
+      if (!operator || operator.status !== 'active') {
+        throw new UnauthorizedError('Operator topilmadi yoki bloklangan');
+      }
+    } else if (decoded.role === USER_ROLES.ADMIN) {
+      const admin = await Admin.findByUsername(decoded.username);
+      if (!admin || admin.status !== 'active') {
+        throw new UnauthorizedError('Admin topilmadi yoki bloklangan');
+      }
+    } else {
+      throw new ForbiddenError('Noma\'lum role');
+    }
+
+    next();
+  } catch (error) {
+    next(error);
+  }
+};

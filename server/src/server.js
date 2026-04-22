@@ -1,24 +1,22 @@
 /**
- * Bank CRM API Server
- * Production-Ready Express Server with Security & Performance Optimizations
+ * Bank CRM API Server — PostgreSQL
+ * Production-Ready Express Server
  */
 
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
-import mongoSanitize from 'express-mongo-sanitize';
-import xss from 'xss-clean';
 import hpp from 'hpp';
 import morgan from 'morgan';
 import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import mongoose from 'mongoose';
 
 // Internal imports
 import connectDB from './config/database.js';
+import { pool } from './config/database.js';
 import logger from './config/logger.js';
 import authRoutes from './routes/authRoutes.js';
 import clientRoutes from './routes/clientRoutes.js';
@@ -33,7 +31,7 @@ const __dirname = path.dirname(__filename);
 dotenv.config();
 
 // Validate required environment variables
-const requiredEnvVars = ['MONGODB_URI', 'JWT_SECRET'];
+const requiredEnvVars = ['DATABASE_URL', 'JWT_SECRET'];
 const missingEnvVars = requiredEnvVars.filter((envVar) => !process.env[envVar]);
 
 if (missingEnvVars.length > 0) {
@@ -45,7 +43,6 @@ if (missingEnvVars.length > 0) {
 const app = express();
 
 // ===== TRUST PROXY =====
-// Production'da reverse proxy (Nginx, Vercel, etc.) uchun
 app.set('trust proxy', 1);
 
 // ===== SECURITY MIDDLEWARE =====
@@ -70,7 +67,6 @@ const corsOptions = {
       ? process.env.CORS_ORIGIN.split(',')
       : ['http://localhost:5173'];
 
-    // Allow requests with no origin (mobile apps, Postman, etc.)
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
@@ -83,35 +79,23 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 
-// Data sanitization against NoSQL injection
-app.use(mongoSanitize());
-
-// Data sanitization against XSS (Cross Site Scripting)
-app.use(xss());
+// Cookie parser
+app.use(cookieParser());
 
 // Prevent parameter pollution
 app.use(hpp());
 
 // ===== BODY PARSER MIDDLEWARE =====
-
-// Parse JSON bodies (limit: 10mb)
 app.use(express.json({ limit: '10mb' }));
-
-// Parse URL-encoded bodies
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // ===== COMPRESSION MIDDLEWARE =====
-
-// Gzip compression for responses
 app.use(compression());
 
 // ===== LOGGING MIDDLEWARE =====
-
-// Morgan HTTP request logger
 if (process.env.NODE_ENV === 'development') {
   app.use(morgan('dev'));
 } else {
-  // Production: log to file
   app.use(
     morgan('combined', {
       stream: logger.stream
@@ -119,178 +103,94 @@ if (process.env.NODE_ENV === 'development') {
   );
 }
 
-// Custom request logger
-app.use((req, res, next) => {
-  logger.info(`${req.method} ${req.path}`, {
-    ip: req.ip,
-    userAgent: req.get('user-agent'),
-    user: req.user?.operatorId || req.user?.username || 'anonymous'
-  });
-  next();
-});
-
-// ===== DATABASE CONNECTION =====
-
-connectDB();
-
 // ===== API ROUTES =====
-
-// API version prefix
 const API_VERSION = '/api/v1';
 
-// Mount routes
 app.use(`${API_VERSION}/auth`, authRoutes);
 app.use(`${API_VERSION}/clients`, clientRoutes);
 app.use(`${API_VERSION}/operators`, operatorRoutes);
 
-// Backward compatibility - redirect old routes to new version
+// Backward compatibility
 app.use('/api/auth', authRoutes);
 app.use('/api/clients', clientRoutes);
 app.use('/api/operators', operatorRoutes);
 
-// ===== HEALTH CHECK ENDPOINT =====
-
+// ===== HEALTH CHECK =====
 app.get('/health', async (req, res) => {
   try {
-    // Check database connection
-    const dbState = mongoose.connection.readyState;
-    const dbStatus = dbState === 1 ? 'connected' : 'disconnected';
-
-    // Memory usage
-    const memoryUsage = process.memoryUsage();
-
-    // Uptime
-    const uptime = process.uptime();
-
+    const result = await pool.query('SELECT NOW()');
     res.json({
       success: true,
       message: 'Bank CRM API is running',
       timestamp: new Date().toISOString(),
-      environment: process.env.NODE_ENV || 'development',
-      database: {
-        status: dbStatus,
-        name: mongoose.connection.name
-      },
-      server: {
-        uptime: `${Math.floor(uptime / 60)} minutes`,
-        memory: {
-          heapUsed: `${Math.round(memoryUsage.heapUsed / 1024 / 1024)} MB`,
-          heapTotal: `${Math.round(memoryUsage.heapTotal / 1024 / 1024)} MB`,
-          rss: `${Math.round(memoryUsage.rss / 1024 / 1024)} MB`
-        },
-        nodejs: process.version,
-        pid: process.pid
-      }
+      database: { status: 'connected', time: result.rows[0].now },
+      environment: process.env.NODE_ENV || 'development'
     });
   } catch (error) {
-    logger.error('Health check failed:', error);
     res.status(503).json({
       success: false,
-      message: 'Service unavailable',
+      message: 'Database disconnected',
       timestamp: new Date().toISOString()
     });
   }
 });
 
-// ===== ROOT ENDPOINT =====
-
+// ===== ROOT =====
 app.get('/', (req, res) => {
   res.json({
     success: true,
-    message: 'Bank CRM API',
-    version: '2.0.0',
-    documentation: {
-      endpoints: {
-        auth: `${API_VERSION}/auth`,
-        clients: `${API_VERSION}/clients`,
-        operators: `${API_VERSION}/operators`,
-        health: '/health'
-      },
-      features: [
-        'JWT Authentication',
-        'Role-based Access Control',
-        'Rate Limiting',
-        'Request Validation',
-        'Pagination & Filtering',
-        'Search Functionality',
-        'Soft Delete',
-        'Performance Optimizations',
-        'Security Hardening',
-        'Professional Logging'
-      ]
-    }
+    message: 'Bank CRM API v2.0 (PostgreSQL)',
+    version: '2.0.0'
   });
 });
 
 // ===== ERROR HANDLERS =====
-
-// 404 Not Found Handler
 app.use(notFoundHandler);
-
-// Global Error Handler
 app.use(errorHandler);
 
 // ===== SERVER STARTUP =====
-
 const PORT = process.env.PORT || 5000;
 const HOST = process.env.HOST || '0.0.0.0';
 
-const server = app.listen(PORT, HOST, () => {
-  logger.info('='.repeat(50));
-  logger.info('🚀 Bank CRM API Server Started');
-  logger.info('='.repeat(50));
-  logger.info(`📡 Server: http://${HOST}:${PORT}`);
-  logger.info(`🏥 Health: http://${HOST}:${PORT}/health`);
-  logger.info(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
-  logger.info(`📦 Node Version: ${process.version}`);
-  logger.info(`🔐 Security: Enabled (Helmet, CORS, XSS, NoSQL Injection)`);
-  logger.info(`⚡ Performance: Enabled (Compression, Caching)`);
-  logger.info(`📝 Logging: Winston + Morgan`);
-  logger.info('='.repeat(50));
-});
+const startServer = async () => {
+  try {
+    await connectDB();
 
-// ===== GRACEFUL SHUTDOWN =====
+    const server = app.listen(PORT, HOST, () => {
+      logger.info('='.repeat(50));
+      logger.info('🚀 Bank CRM API Server Started (PostgreSQL)');
+      logger.info('='.repeat(50));
+      logger.info(`📡 Server: http://${HOST}:${PORT}`);
+      logger.info(`🏥 Health: http://${HOST}:${PORT}/health`);
+      logger.info(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+      logger.info(`🐘 Database: PostgreSQL`);
+      logger.info('='.repeat(50));
+    });
 
-const gracefulShutdown = (signal) => {
-  logger.info(`\n${signal} signal received: closing HTTP server gracefully`);
+    // Graceful Shutdown
+    const gracefulShutdown = (signal) => {
+      logger.info(`\n${signal} signal received: shutting down...`);
+      server.close(async () => {
+        await pool.end();
+        logger.info('PostgreSQL pool closed. Goodbye!');
+        process.exit(0);
+      });
+      setTimeout(() => process.exit(1), 10000);
+    };
 
-  server.close(async () => {
-    logger.info('HTTP server closed');
+    process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+    process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+    process.on('unhandledRejection', (err) => {
+      logger.error('UNHANDLED REJECTION!', err);
+      gracefulShutdown('UNHANDLED_REJECTION');
+    });
 
-    try {
-      // Close database connection
-      await mongoose.connection.close();
-      logger.info('MongoDB connection closed');
-
-      logger.info('Graceful shutdown completed');
-      process.exit(0);
-    } catch (error) {
-      logger.error('Error during graceful shutdown:', error);
-      process.exit(1);
-    }
-  });
-
-  // Force shutdown after 10 seconds
-  setTimeout(() => {
-    logger.error('Forcing shutdown after 10 seconds...');
+  } catch (error) {
+    logger.error('❌ Server start failed:', error);
     process.exit(1);
-  }, 10000);
+  }
 };
 
-// Listen for termination signals
-process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
-process.on('SIGINT', () => gracefulShutdown('SIGINT'));
-
-// Unhandled rejection handler
-process.on('unhandledRejection', (err) => {
-  logger.error('UNHANDLED REJECTION! 💥 Shutting down...', err);
-  gracefulShutdown('UNHANDLED_REJECTION');
-});
-
-// Uncaught exception handler
-process.on('uncaughtException', (err) => {
-  logger.error('UNCAUGHT EXCEPTION! 💥 Shutting down...', err);
-  gracefulShutdown('UNCAUGHT_EXCEPTION');
-});
+startServer();
 
 export default app;

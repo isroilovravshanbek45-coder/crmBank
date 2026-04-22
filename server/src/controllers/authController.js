@@ -1,5 +1,5 @@
 /**
- * Auth Controller
+ * Auth Controller — PostgreSQL
  * Authentication va authorization logic
  */
 
@@ -39,46 +39,44 @@ export const operatorLogin = asyncHandler(async (req, res) => {
     throw new UnauthorizedError(ERROR_MESSAGES.INVALID_CREDENTIALS);
   }
 
-  // Operator'ni topish yoki yaratish
-  let operator = await Operator.findOne({ operatorId: login }).select('+password');
+  // Operator'ni topish (parol bilan)
+  let operator = await Operator.findByOperatorId(login, true);
 
   // Agar operator mavjud bo'lmasa, default parol bilan yaratish
   if (!operator) {
-    operator = await Operator.create({
+    await Operator.create({
       operatorId: login,
       name: `Operator ${login}`,
-      password: '1234' // Default parol (hash qilinadi pre-save hook orqali)
+      password: '1234'
     });
 
     logger.info(`New operator created: ${login}`);
-
-    // Yangi yaratilgan operatorni parol bilan qayta olish
-    operator = await Operator.findOne({ operatorId: login }).select('+password');
+    operator = await Operator.findByOperatorId(login, true);
   }
 
   // Operator locked bo'lsa
-  if (operator.isLocked) {
-    const remainingTime = Math.ceil((operator.lockUntil - Date.now()) / 60000);
+  if (Operator.isLocked(operator)) {
+    const remainingTime = Math.ceil((new Date(operator.lock_until) - Date.now()) / 60000);
     throw new ForbiddenError(
       `Hisob bloklangan. ${remainingTime} daqiqadan keyin qayta urinib ko'ring.`
     );
   }
 
   // Parolni tekshirish
-  const isPasswordCorrect = await operator.comparePassword(password);
+  const isPasswordCorrect = await Operator.comparePassword(password, operator.password);
 
   if (!isPasswordCorrect) {
-    await operator.onLoginFailure();
+    await Operator.onLoginFailure(operator.id, operator.login_attempts);
     logger.warn(`Failed login attempt for operator: ${login}`);
     throw new UnauthorizedError(ERROR_MESSAGES.INVALID_CREDENTIALS);
   }
 
   // Login muvaffaqiyatli
-  await operator.onLoginSuccess();
+  await Operator.onLoginSuccess(operator.id);
 
   // Token yaratish
   const token = generateToken({
-    operatorId: operator.operatorId,
+    operatorId: operator.operator_id,
     role: USER_ROLES.OPERATOR
   });
 
@@ -87,7 +85,7 @@ export const operatorLogin = asyncHandler(async (req, res) => {
   sendSuccessResponse(res, HTTP_STATUS.OK, SUCCESS_MESSAGES.LOGIN_SUCCESS, {
     token,
     user: {
-      operatorId: operator.operatorId,
+      operatorId: operator.operator_id,
       name: operator.name,
       role: USER_ROLES.OPERATOR
     }
@@ -102,15 +100,14 @@ export const adminLogin = asyncHandler(async (req, res) => {
   const { login, password } = req.body;
 
   // Admin'ni topish
-  let admin = await Admin.findOne({ username: login }).select('+password');
+  let admin = await Admin.findByUsername(login, true);
 
-  // Agar admin yo'q bo'lsa, environment variable'dan tekshirish (backward compatibility)
+  // Agar admin yo'q bo'lsa, environment variable'dan tekshirish
   if (!admin) {
     const envUsername = process.env.ADMIN_USERNAME;
     const envPassword = process.env.ADMIN_PASSWORD;
 
-    if (login === envUsername && password === envPassword) {
-      // .env dan admin yaratish (migration uchun)
+    if (login.toLowerCase() === envUsername?.toLowerCase() && password === envPassword) {
       admin = await Admin.create({
         username: envUsername,
         password: envPassword,
@@ -119,9 +116,7 @@ export const adminLogin = asyncHandler(async (req, res) => {
       });
 
       logger.info(`Admin migrated from .env to database: ${envUsername}`);
-
-      // Yangi yaratilgan adminni parol bilan qayta olish
-      admin = await Admin.findOne({ username: envUsername }).select('+password');
+      admin = await Admin.findByUsername(envUsername, true);
     } else {
       logger.warn(`Invalid admin login attempt: ${login}`);
       throw new UnauthorizedError(ERROR_MESSAGES.INVALID_CREDENTIALS);
@@ -129,24 +124,24 @@ export const adminLogin = asyncHandler(async (req, res) => {
   }
 
   // Admin locked bo'lsa
-  if (admin.isLocked) {
-    const remainingTime = Math.ceil((admin.lockUntil - Date.now()) / 60000);
+  if (Admin.isLocked(admin)) {
+    const remainingTime = Math.ceil((new Date(admin.lock_until) - Date.now()) / 60000);
     throw new ForbiddenError(
       `Hisob bloklangan. ${remainingTime} daqiqadan keyin qayta urinib ko'ring.`
     );
   }
 
   // Parolni tekshirish
-  const isPasswordCorrect = await admin.comparePassword(password);
+  const isPasswordCorrect = await Admin.comparePassword(password, admin.password);
 
   if (!isPasswordCorrect) {
-    await admin.onLoginFailure();
+    await Admin.onLoginFailure(admin.id, admin.login_attempts);
     logger.warn(`Failed login attempt for admin: ${login}`);
     throw new UnauthorizedError(ERROR_MESSAGES.INVALID_CREDENTIALS);
   }
 
   // Login muvaffaqiyatli
-  await admin.onLoginSuccess();
+  await Admin.onLoginSuccess(admin.id);
 
   // Token yaratish
   const token = generateToken({
@@ -160,7 +155,7 @@ export const adminLogin = asyncHandler(async (req, res) => {
     token,
     user: {
       username: admin.username,
-      fullName: admin.fullName,
+      fullName: admin.full_name,
       role: USER_ROLES.ADMIN
     }
   });
@@ -197,22 +192,19 @@ export const changeOperatorPassword = asyncHandler(async (req, res) => {
   const { currentPassword, newPassword } = req.body;
   const operatorId = req.user.operatorId;
 
-  const operator = await Operator.findOne({ operatorId }).select('+password');
+  const operator = await Operator.findByOperatorId(operatorId, true);
 
   if (!operator) {
     throw new UnauthorizedError('Operator topilmadi');
   }
 
-  // Joriy parolni tekshirish
-  const isPasswordCorrect = await operator.comparePassword(currentPassword);
+  const isPasswordCorrect = await Operator.comparePassword(currentPassword, operator.password);
 
   if (!isPasswordCorrect) {
     throw new UnauthorizedError('Joriy parol noto\'g\'ri');
   }
 
-  // Yangi parolni o'rnatish
-  operator.password = newPassword;
-  await operator.save();
+  await Operator.updatePassword(operatorId, newPassword);
 
   logger.info(`Operator changed password: ${operatorId}`);
 
@@ -227,22 +219,19 @@ export const changeAdminPassword = asyncHandler(async (req, res) => {
   const { currentPassword, newPassword } = req.body;
   const username = req.user.username;
 
-  const admin = await Admin.findOne({ username }).select('+password');
+  const admin = await Admin.findByUsername(username, true);
 
   if (!admin) {
     throw new UnauthorizedError('Admin topilmadi');
   }
 
-  // Joriy parolni tekshirish
-  const isPasswordCorrect = await admin.comparePassword(currentPassword);
+  const isPasswordCorrect = await Admin.comparePassword(currentPassword, admin.password);
 
   if (!isPasswordCorrect) {
     throw new UnauthorizedError('Joriy parol noto\'g\'ri');
   }
 
-  // Yangi parolni o'rnatish
-  admin.password = newPassword;
-  await admin.save();
+  await Admin.updatePassword(admin.id, newPassword);
 
   logger.info(`Admin changed password: ${username}`);
 

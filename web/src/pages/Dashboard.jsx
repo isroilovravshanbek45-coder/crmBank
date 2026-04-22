@@ -25,10 +25,27 @@ const Dashboard = ({ onLogout }) => {
   // API dan ma'lumotlarni yuklash
   useEffect(() => {
     const initDashboard = async () => {
-      // Token tekshirish
+      // Token va role tekshirish
       const token = localStorage.getItem('bankCrmToken');
+      const userRole = localStorage.getItem('bankCrmUserRole');
+
       if (!token) {
         alert('Token topilmadi. Iltimos, qayta kiring.');
+        logout();
+        onLogout();
+        return;
+      }
+
+      // Agar admin bo'lsa, admin panelga yo'naltirish
+      if (userRole === 'admin') {
+        alert('Admin sifatida operator dashboard\'ga kira olmaysiz.');
+        navigate('/admin');
+        return;
+      }
+
+      // Agar operator emas bo'lsa, logout
+      if (userRole !== 'operator') {
+        alert('Faqat operatorlar uchun. Iltimos, operator sifatida kiring.');
         logout();
         onLogout();
         return;
@@ -38,8 +55,11 @@ const Dashboard = ({ onLogout }) => {
       try {
         setLoading(true);
         const response = await getOperatorClients();
+        console.log('🔍 Dashboard - Full Response:', response);
         if (response.success) {
           const clientsData = response.data?.data || response.data || [];
+          console.log('✅ Dashboard - Clients Data:', clientsData);
+          console.log('📊 Dashboard - Clients Count:', clientsData.length);
           setClients(clientsData);
         }
       } catch (error) {
@@ -94,6 +114,15 @@ const Dashboard = ({ onLogout }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
+
+    // Xavfsizlik tekshiruvi - faqat operator
+    const userRole = localStorage.getItem('bankCrmUserRole');
+    if (userRole !== 'operator') {
+      alert('Faqat operatorlar mijoz qo\'sha oladi!');
+      logout();
+      onLogout();
+      return;
+    }
 
     try {
       if (isEditing) {
@@ -189,7 +218,7 @@ const Dashboard = ({ onLogout }) => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-slate-100">
       {/* Header */}
       <header className="bg-white shadow-sm px-6 py-4 flex justify-between items-center">
         <h1 className="text-2xl font-bold text-gray-800">Bank CRM</h1>
@@ -253,7 +282,7 @@ const Dashboard = ({ onLogout }) => {
                 value={formData.ism}
                 onChange={handleChange}
                 placeholder="Ism"
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                className="w-full px-4 py-3 bg-slate-50 border border-gray-300 text-gray-900 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none shadow-inner transition-all hover:bg-slate-100"
                 required
               />
               <input
@@ -262,7 +291,7 @@ const Dashboard = ({ onLogout }) => {
                 value={formData.familya}
                 onChange={handleChange}
                 placeholder="Familya"
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                className="w-full px-4 py-3 bg-slate-50 border border-gray-300 text-gray-900 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none shadow-inner transition-all hover:bg-slate-100"
                 required
               />
               <input
@@ -271,7 +300,7 @@ const Dashboard = ({ onLogout }) => {
                 value={formData.telefon}
                 onChange={handleChange}
                 placeholder="+998901234567"
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                className="w-full px-4 py-3 bg-slate-50 border border-gray-300 text-gray-900 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none shadow-inner transition-all hover:bg-slate-100"
                 required
               />
               <input
@@ -280,7 +309,7 @@ const Dashboard = ({ onLogout }) => {
                 value={formData.hudud}
                 onChange={handleChange}
                 placeholder="Hudud"
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                className="w-full px-4 py-3 bg-slate-50 border border-gray-300 text-gray-900 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none shadow-inner transition-all hover:bg-slate-100"
                 required
               />
             </div>
@@ -292,14 +321,14 @@ const Dashboard = ({ onLogout }) => {
                 value={formData.summa}
                 onChange={handleChange}
                 placeholder="Summa"
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                className="w-full px-4 py-3 bg-slate-50 border border-gray-300 text-gray-900 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none shadow-inner transition-all hover:bg-slate-100"
                 required
               />
               <select
                 name="status"
                 value={formData.status}
                 onChange={handleChange}
-                className="px-4 py-2 pr-8 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none appearance-none bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTIiIGhlaWdodD0iOCIgdmlld0JveD0iMCAwIDEyIDgiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHBhdGggZD0iTTEgMUw2IDZMMTEgMSIgc3Ryb2tlPSIjNkI3MjgwIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPjwvc3ZnPg==')] bg-[center_right_0.5rem] bg-no-repeat"
+                className="w-full px-4 py-3 bg-slate-50 border border-gray-300 text-gray-900 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none shadow-inner transition-all hover:bg-slate-100 appearance-none bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTIiIGhlaWdodD0iOCIgdmlld0JveD0iMCAwIDEyIDgiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHBhdGggZD0iTTEgMUw2IDZMMTEgMSIgc3Ryb2tlPSIjNkI3MjgwIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPjwvc3ZnPg==')] bg-[center_right_1rem] bg-no-repeat"
               >
                 <option value="Jarayonda">Jarayonda</option>
                 <option value="Tasdiqlangan">Tasdiqlangan</option>
@@ -313,7 +342,7 @@ const Dashboard = ({ onLogout }) => {
               value={formData.garov}
               onChange={handleChange}
               placeholder="Garov"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none mb-6"
+              className="w-full px-4 py-3 bg-slate-50 border border-gray-300 text-gray-900 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none shadow-inner transition-all hover:bg-slate-100 mb-6"
               required
             />
 
@@ -323,7 +352,7 @@ const Dashboard = ({ onLogout }) => {
               onChange={handleChange}
               placeholder="Izoh (ixtiyoriy)"
               rows="3"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none mb-6 resize-none"
+              className="w-full px-4 py-3 bg-slate-50 border border-gray-300 text-gray-900 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none shadow-inner transition-all hover:bg-slate-100 mb-6 resize-none"
             />
 
             <button

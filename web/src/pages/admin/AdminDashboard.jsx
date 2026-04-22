@@ -11,6 +11,8 @@ const AdminDashboard = () => {
   const [topOperators, setTopOperators] = useState([]);
   const [selectedPeriod, setSelectedPeriod] = useState('all');
   const [loading, setLoading] = useState(true);
+  const [initialLoad, setInitialLoad] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [stats, setStats] = useState({
     totalClients: 0,
     totalAmount: 0,
@@ -30,8 +32,16 @@ const AdminDashboard = () => {
   }, [clients]);
 
   const loadData = async () => {
+    // Agar yuklanayotgan bo'lsa, qayta yuklashni oldini olish
+    if (refreshing) return;
+
     try {
-      setLoading(true);
+      // Faqat birinchi yuklashda loading spinner ko'rsatish
+      if (initialLoad) {
+        setLoading(true);
+      } else {
+        setRefreshing(true);
+      }
 
       const [clientsRes, operatorsRes, topOperatorsRes] = await Promise.all([
         getAllClients(),
@@ -58,9 +68,14 @@ const AdminDashboard = () => {
       }
     } catch (error) {
       console.error('Ma\'lumotlarni yuklashda xatolik:', error);
-      alert('Ma\'lumotlarni yuklashda xatolik yuz berdi');
+      // Faqat birinchi yuklashda alert ko'rsatish
+      if (initialLoad) {
+        alert('Ma\'lumotlarni yuklashda xatolik yuz berdi');
+      }
     } finally {
       setLoading(false);
+      setRefreshing(false);
+      setInitialLoad(false);
     }
   };
 
@@ -164,10 +179,16 @@ const AdminDashboard = () => {
             </div>
             <div className="flex gap-3">
               <button
-                onClick={() => navigate('/dashboard')}
-                className="px-5 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors"
+                onClick={() => loadData()}
+                disabled={refreshing}
+                className={`flex items-center gap-2 px-5 py-2.5 bg-white border border-gray-300 rounded-lg font-medium transition-colors ${
+                  refreshing ? 'opacity-50 cursor-not-allowed text-gray-400' : 'text-gray-700 hover:bg-gray-50'
+                }`}
               >
-                CRM Panel
+                <svg className={`w-5 h-5 ${refreshing ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                {refreshing ? 'Yuklanmoqda...' : 'Yangilash'}
               </button>
               <button
                 onClick={handleLogout}

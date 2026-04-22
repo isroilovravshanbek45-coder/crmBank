@@ -86,7 +86,7 @@ const LoginPage = ({ onLogin }) => {
               value={formData.login}
               onChange={handleChange}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
-              placeholder="401"
+              placeholder="Loginni kiriting"
               autoComplete="new-password"
               required
             />
@@ -105,7 +105,7 @@ const LoginPage = ({ onLogin }) => {
                 value={formData.password}
                 onChange={handleChange}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition pr-12"
-                placeholder="1234"
+                placeholder="Parolni kiriting"
                 autoComplete="new-password"
                 required
               />
