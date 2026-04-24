@@ -43,6 +43,30 @@ const handlePostgresError = (err) => {
     };
   }
 
+  // Numeric field overflow (22003)
+  if (err.code === '22003') {
+    return {
+      statusCode: HTTP_STATUS.BAD_REQUEST,
+      message: 'Kiritilgan son juda katta. Iltimos, to\'g\'ri summa kiriting'
+    };
+  }
+
+  // Invalid text representation (22P02) — e.g. invalid integer
+  if (err.code === '22P02') {
+    return {
+      statusCode: HTTP_STATUS.BAD_REQUEST,
+      message: 'Noto\'g\'ri ma\'lumot formati kiritildi'
+    };
+  }
+
+  // String data right truncation (22001) — too long text
+  if (err.code === '22001') {
+    return {
+      statusCode: HTTP_STATUS.BAD_REQUEST,
+      message: 'Kiritilgan matn juda uzun'
+    };
+  }
+
   return null;
 };
 
@@ -110,6 +134,11 @@ export const errorHandler = (err, req, res, next) => {
     message = validationError.message;
   }
 
+  // SAFETY: Ensure statusCode is always a valid number
+  if (!statusCode || typeof statusCode !== 'number' || statusCode < 100 || statusCode > 599) {
+    statusCode = 500;
+  }
+
   // Log error
   if (statusCode >= 500) {
     logger.error(`[${statusCode}] ${message}`, {
@@ -122,6 +151,11 @@ export const errorHandler = (err, req, res, next) => {
       path: req.path,
       method: req.method
     });
+  }
+
+  // Agar javob allaqachon yuborilgan bo'lsa, qayta yubormaslik
+  if (res.headersSent) {
+    return next(err);
   }
 
   // Response

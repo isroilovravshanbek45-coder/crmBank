@@ -65,7 +65,7 @@ const initDB = async () => {
         telefon VARCHAR(20) NOT NULL,
         hudud VARCHAR(100) NOT NULL,
         garov VARCHAR(200) NOT NULL,
-        summa NUMERIC(15,2) NOT NULL,
+        summa NUMERIC(20,2) NOT NULL,
         operator_raqam VARCHAR(10) NOT NULL REFERENCES operators(operator_id),
         status VARCHAR(20) DEFAULT 'Jarayonda' CHECK (status IN ('Jarayonda', 'Tasdiqlangan', 'Rad etilgan')),
         comment TEXT DEFAULT '',
@@ -76,6 +76,12 @@ const initDB = async () => {
       );
     `);
     console.log('✅ clients jadvali yaratildi');
+
+    // Mavjud baza uchun summa ustunini kattalashtirish
+    await client.query(`
+      ALTER TABLE clients ALTER COLUMN summa TYPE NUMERIC(20,2);
+    `);
+    console.log('✅ summa ustuni NUMERIC(20,2) ga yangilandi');
 
     // ===== INDEXES =====
     const indexes = [
