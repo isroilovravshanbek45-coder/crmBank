@@ -13,7 +13,8 @@ import {
   searchClients,
   getStatistics,
   bulkUpdateClients,
-  exportClientsCSV
+  exportClientsCSV,
+  archiveCompletedClients
 } from '../controllers/clientController.js';
 import {
   createClientValidation,
@@ -34,6 +35,7 @@ router.get('/search', authenticateAny, searchClients);
 router.get('/statistics', authenticateAny, getStatistics);
 router.get('/export', authenticateAdmin, exportClientsCSV);
 router.patch('/bulk-update', authenticateAdmin, bulkUpdateClients);
+router.post('/archive', authenticateAdmin, archiveCompletedClients);
 
 // ===== OPERATOR ROUTES =====
 router.post('/', authenticateOperator, createClientValidation, validate, createClient);

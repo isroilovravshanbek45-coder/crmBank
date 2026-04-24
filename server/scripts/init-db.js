@@ -69,6 +69,7 @@ const initDB = async () => {
         operator_raqam VARCHAR(10) NOT NULL REFERENCES operators(operator_id),
         status VARCHAR(20) DEFAULT 'Jarayonda' CHECK (status IN ('Jarayonda', 'Tasdiqlangan', 'Rad etilgan')),
         comment TEXT DEFAULT '',
+        archived BOOLEAN DEFAULT false,
         deleted BOOLEAN DEFAULT false,
         deleted_at TIMESTAMPTZ,
         created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -77,11 +78,14 @@ const initDB = async () => {
     `);
     console.log('✅ clients jadvali yaratildi');
 
-    // Mavjud baza uchun summa ustunini kattalashtirish
+    // Mavjud baza uchun summa ustunini kattalashtirish va archived ustunini qo'shish
     await client.query(`
       ALTER TABLE clients ALTER COLUMN summa TYPE NUMERIC(20,2);
     `);
-    console.log('✅ summa ustuni NUMERIC(20,2) ga yangilandi');
+    await client.query(`
+      ALTER TABLE clients ADD COLUMN IF NOT EXISTS archived BOOLEAN DEFAULT false;
+    `);
+    console.log('✅ summa ustuni NUMERIC(20,2) ga yangilandi, archived ustuni qo\\'shildi');
 
     // ===== INDEXES =====
     const indexes = [
@@ -93,7 +97,9 @@ const initDB = async () => {
       'CREATE INDEX IF NOT EXISTS idx_clients_operator_status ON clients(operator_raqam, status)',
       'CREATE INDEX IF NOT EXISTS idx_clients_created ON clients(created_at DESC)',
       'CREATE INDEX IF NOT EXISTS idx_clients_deleted ON clients(deleted)',
+      'CREATE INDEX IF NOT EXISTS idx_clients_archived ON clients(archived)',
       'CREATE INDEX IF NOT EXISTS idx_clients_not_deleted ON clients(created_at DESC) WHERE deleted = false',
+      'CREATE INDEX IF NOT EXISTS idx_clients_active ON clients(created_at DESC) WHERE deleted = false AND archived = false',
     ];
 
     for (const idx of indexes) {

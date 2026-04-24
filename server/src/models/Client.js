@@ -10,7 +10,7 @@ const Client = {
   /**
    * Barcha mijozlarni olish (pagination bilan)
    */
-  async findAll({ page = 1, limit = 100, status, operatorId, sortBy = 'created_at', sortOrder = 'DESC' } = {}) {
+  async findAll({ page = 1, limit = 100, status, operatorId, sortBy = 'created_at', sortOrder = 'DESC', archived = false } = {}) {
     const conditions = ['deleted = false'];
     const values = [];
     let paramIndex = 1;
@@ -22,6 +22,12 @@ const Client = {
     if (operatorId) {
       conditions.push(`operator_raqam = $${paramIndex++}`);
       values.push(operatorId);
+    }
+    
+    // Default holatda faqat arxivlanmaganlarni qaytarish, 'all' bo'lsa aralash
+    if (archived !== 'all') {
+      conditions.push(`archived = $${paramIndex++}`);
+      values.push(archived);
     }
 
     const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
@@ -39,8 +45,9 @@ const Client = {
     values.push(offset);
     const dataResult = await query(
       `SELECT id, ism, familya, telefon, hudud, garov, summa, operator_raqam AS "operatorRaqam",
-              status, comment, created_at AS "createdAt", updated_at AS "updatedAt"
-       FROM clients ${whereClause}
+              status, comment, archived, created_at AS "createdAt", updated_at AS "updatedAt"
+       FROM clients
+       ${whereClause}
        ORDER BY ${sortBy} ${sortOrder}
        LIMIT $${paramIndex++} OFFSET $${paramIndex}`,
       values
@@ -60,8 +67,8 @@ const Client = {
   /**
    * Operator mijozlarini olish
    */
-  async findByOperator(operatorId, { page = 1, limit = 100 } = {}) {
-    return this.findAll({ operatorId, page, limit });
+  async findByOperator(operatorId, { page = 1, limit = 100, archived = false } = {}) {
+    return this.findAll({ operatorId, page, limit, archived });
   },
 
   /**
@@ -70,7 +77,7 @@ const Client = {
   async findById(id) {
     const result = await query(
       `SELECT id, ism, familya, telefon, hudud, garov, summa, operator_raqam AS "operatorRaqam",
-              status, comment, deleted, created_at AS "createdAt", updated_at AS "updatedAt"
+              status, comment, deleted, archived, created_at AS "createdAt", updated_at AS "updatedAt"
        FROM clients WHERE id = $1 AND deleted = false`,
       [id]
     );
@@ -91,7 +98,7 @@ const Client = {
       `INSERT INTO clients (ism, familya, telefon, hudud, garov, summa, operator_raqam, status, comment)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
        RETURNING id, ism, familya, telefon, hudud, garov, summa, operator_raqam AS "operatorRaqam",
-                 status, comment, created_at AS "createdAt", updated_at AS "updatedAt"`,
+                 status, comment, archived, created_at AS "createdAt", updated_at AS "updatedAt"`,
       [ism, familya, telefon, hudud, garov, summa, operatorRaqam, status, comment]
     );
     const row = result.rows[0];
@@ -128,7 +135,7 @@ const Client = {
       `UPDATE clients SET ${fields.join(', ')}
        WHERE id = $${paramIndex} AND deleted = false
        RETURNING id, ism, familya, telefon, hudud, garov, summa, operator_raqam AS "operatorRaqam",
-                 status, comment, created_at AS "createdAt", updated_at AS "updatedAt"`,
+                 status, comment, archived, created_at AS "createdAt", updated_at AS "updatedAt"`,
       values
     );
     const row = result.rows[0];
@@ -159,6 +166,18 @@ const Client = {
       [id]
     );
     return result.rowCount > 0;
+  },
+
+  /**
+   * Ishi tugagan mijozlarni arxivlash (Tasdiqlangan yoki Rad etilgan)
+   */
+  async archiveCompleted() {
+    const result = await query(
+      `UPDATE clients SET archived = true
+       WHERE status IN ('Tasdiqlangan', 'Rad etilgan') AND archived = false AND deleted = false
+       RETURNING id`
+    );
+    return result.rowCount;
   },
 
   /**
@@ -239,10 +258,15 @@ const Client = {
   /**
    * Search — PostgreSQL full-text search
    */
-  async search(searchTerm, { operatorId, status, limit = 20 } = {}) {
+  async search(searchTerm, { operatorId, status, limit = 20, archived = false } = {}) {
     const conditions = ['deleted = false'];
     const values = [];
     let paramIndex = 1;
+
+    if (archived !== 'all') {
+      conditions.push(`archived = $${paramIndex++}`);
+      values.push(archived);
+    }
 
     // Full text search
     conditions.push(`search_vector @@ to_tsquery('simple', $${paramIndex++})`);

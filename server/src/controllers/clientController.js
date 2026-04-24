@@ -16,9 +16,14 @@ import logger from '../config/logger.js';
  */
 export const getAllClients = asyncHandler(async (req, res) => {
   const { page, limit } = getPaginationParams(req.query);
-  const { status } = req.query;
+  const { status, archived = false } = req.query;
 
-  const result = await Client.findAll({ page, limit, status });
+  // 'all', 'true', 'false' stringlarni boolean'ga o'tkazish
+  let archivedFilter = archived;
+  if (archived === 'true') archivedFilter = true;
+  if (archived === 'false') archivedFilter = false;
+
+  const result = await Client.findAll({ page, limit, status, archived: archivedFilter });
 
   sendSuccessResponse(res, HTTP_STATUS.OK, 'Mijozlar ro\'yxati', result);
 });
@@ -30,8 +35,13 @@ export const getAllClients = asyncHandler(async (req, res) => {
 export const getOperatorClients = asyncHandler(async (req, res) => {
   const operatorId = req.user.operatorId;
   const { page, limit } = getPaginationParams(req.query);
+  const { archived = false } = req.query;
 
-  const result = await Client.findByOperator(operatorId, { page, limit });
+  let archivedFilter = archived;
+  if (archived === 'true') archivedFilter = true;
+  if (archived === 'false') archivedFilter = false;
+
+  const result = await Client.findByOperator(operatorId, { page, limit, archived: archivedFilter });
 
   sendSuccessResponse(res, HTTP_STATUS.OK, 'Operator mijozlari', result);
 });
@@ -98,9 +108,26 @@ export const updateClient = asyncHandler(async (req, res) => {
 
   const updatedClient = await Client.update(req.params.id, req.body);
 
-  logger.info(`Client updated: ${req.params.id}`);
+  logger.info(`Client ${req.params.id} updated by ${req.user.username}`);
 
   sendSuccessResponse(res, HTTP_STATUS.OK, 'Mijoz muvaffaqiyatli yangilandi', updatedClient);
+});
+
+/**
+ * Ishi tugagan mijozlarni arxivlash (Admin)
+ * POST /api/clients/archive
+ */
+export const archiveCompletedClients = asyncHandler(async (req, res) => {
+  const archivedCount = await Client.archiveCompleted();
+  
+  logger.info(`${archivedCount} ta mijoz arxivlandi by admin ${req.user.username}`);
+  
+  sendSuccessResponse(
+    res, 
+    HTTP_STATUS.OK, 
+    `${archivedCount} ta mijoz muvaffaqiyatli arxivlandi`, 
+    { count: archivedCount }
+  );
 });
 
 /**

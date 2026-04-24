@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import * as XLSX from 'xlsx';
-import { getAllClients } from '../../services/clientService';
+import { getAllClients, archiveClients } from '../../services/clientService';
 
 const AllClients = () => {
   const navigate = useNavigate();
@@ -13,10 +13,12 @@ const AllClients = () => {
   const [loading, setLoading] = useState(true);
   const [initialLoad, setInitialLoad] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
+  const [isArchiving, setIsArchiving] = useState(false);
 
   useEffect(() => {
     loadClients();
-  }, []);
+  }, [showArchived]);
 
   const loadClients = async () => {
     // Agar yuklanayotgan bo'lsa, qayta yuklashni oldini olish
@@ -30,7 +32,7 @@ const AllClients = () => {
         setRefreshing(true);
       }
 
-      const response = await getAllClients();
+      const response = await getAllClients(showArchived ? 'all' : false);
       if (response.success) {
         // Backend pagination format: { data: { data: [...], pagination: {...} } }
         const clientsData = response.data?.data || response.data || [];
@@ -48,6 +50,26 @@ const AllClients = () => {
       setLoading(false);
       setRefreshing(false);
       setInitialLoad(false);
+    }
+  };
+
+  const handleArchive = async () => {
+    if (!window.confirm("Barcha 'Tasdiqlangan' va 'Rad etilgan' statusidagi mijozlarni arxivga o'tkazasizmi? Ular endi ro'yxatda ko'rinmaydi, lekin statistikada hisobga olinadi.")) {
+      return;
+    }
+    
+    try {
+      setIsArchiving(true);
+      const res = await archiveClients();
+      if (res.success) {
+        alert(res.message || "Mijozlar arxivlandi");
+        loadClients();
+      }
+    } catch (error) {
+      console.error('Arxivlashda xatolik:', error);
+      alert("Xatolik yuz berdi");
+    } finally {
+      setIsArchiving(false);
     }
   };
 
@@ -106,6 +128,7 @@ const AllClients = () => {
         'Summa (UZS)': parseFloat(client.summa),
         'Operator': client.operatorRaqam,
         'Status': client.status,
+        'Arxivlangan': client.archived ? 'Ha' : 'Yo\'q',
         'Izoh': client.comment || '',
         'Yaratilgan sana': createdDate
       };
@@ -234,6 +257,18 @@ const AllClients = () => {
             </div>
             <div className="flex gap-3">
               <button
+                onClick={handleArchive}
+                disabled={isArchiving}
+                className={`flex items-center gap-2 px-5 py-2.5 text-white rounded-lg font-medium transition-colors ${
+                  isArchiving ? 'opacity-50 cursor-not-allowed bg-gray-400' : 'bg-indigo-600 hover:bg-indigo-700'
+                }`}
+              >
+                <svg className={`w-5 h-5 ${isArchiving ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                </svg>
+                {isArchiving ? 'Arxivlanmoqda...' : 'Tugallanganlarni arxivlash'}
+              </button>
+              <button
                 onClick={() => loadClients()}
                 disabled={refreshing}
                 className={`flex items-center gap-2 px-5 py-2.5 bg-white border border-gray-300 rounded-lg font-medium transition-colors ${
@@ -265,7 +300,7 @@ const AllClients = () => {
       <div className="max-w-7xl mx-auto p-6">
         {/* Filters */}
         <div className="bg-white rounded-xl shadow p-6 mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             {/* Search */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Qidiruv</label>
@@ -306,6 +341,19 @@ const AllClients = () => {
                   <option key={op} value={op}>Operator {op}</option>
                 ))}
               </select>
+            </div>
+
+            {/* Archive toggle */}
+            <div className="flex items-end">
+              <label className="flex items-center gap-2 cursor-pointer h-[42px] px-2 w-full bg-slate-50 border border-gray-300 rounded-lg justify-center hover:bg-slate-100 transition-colors">
+                <input
+                  type="checkbox"
+                  checked={showArchived}
+                  onChange={(e) => setShowArchived(e.target.checked)}
+                  className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                />
+                <span className="text-sm font-medium text-gray-700">Arxivlanganlarni ko'rsatish</span>
+              </label>
             </div>
           </div>
         </div>
@@ -382,6 +430,11 @@ const AllClients = () => {
                           }}>
                           {client.status}
                         </span>
+                        {client.archived && (
+                          <span className="block mt-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                            Arxivlangan
+                          </span>
+                        )}
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-600 whitespace-nowrap">
                         {client.createdAt

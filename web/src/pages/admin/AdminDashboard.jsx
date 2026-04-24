@@ -44,7 +44,7 @@ const AdminDashboard = () => {
       }
 
       const [clientsRes, operatorsRes, topOperatorsRes] = await Promise.all([
-        getAllClients(),
+        getAllClients('all'),
         getAllOperators(),
         getTopOperators(5)
       ]);
@@ -148,6 +148,7 @@ const AdminDashboard = () => {
     const last24Hours = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
     return clients.filter(c => {
+      if (c.archived) return false;
       if (!c.createdAt) return false;
       const createdDate = new Date(c.createdAt);
       return createdDate >= last24Hours;

@@ -1,13 +1,13 @@
 import { get, post, put, del } from '../utils/api';
 
 // Barcha mijozlarni olish (Admin uchun)
-export const getAllClients = async () => {
-  return await get('/clients');
+export const getAllClients = async (archived = false) => {
+  return await get(`/clients?archived=${archived}`);
 };
 
 // Operator mijozlarini olish
-export const getOperatorClients = async () => {
-  return await get('/clients/operator');
+export const getOperatorClients = async (archived = false) => {
+  return await get(`/clients/operator?archived=${archived}`);
 };
 
 // Bitta mijozni olish
@@ -45,6 +45,11 @@ export const getStatistics = async (operatorId = null, period = null) => {
   return await get(endpoint);
 };
 
+// Mijozlarni arxivlash
+export const archiveClients = async () => {
+  return await post('/clients/archive');
+};
+
 export default {
   getAllClients,
   getOperatorClients,
@@ -53,4 +58,5 @@ export default {
   updateClient,
   deleteClient,
   getStatistics,
+  archiveClients,
 };
