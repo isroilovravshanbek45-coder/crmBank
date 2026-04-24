@@ -27,7 +27,7 @@ export const calculateClientStats = (clients) => {
  */
 export const getPaginationParams = (query) => {
   const page = parseInt(query.page) || 1;
-  const limit = Math.min(parseInt(query.limit) || 10, 100); // Max 100
+  const limit = Math.min(parseInt(query.limit) || 1000, 10000); // Default 1000, Max 10000
   const skip = (page - 1) * limit;
 
   return { page, limit, skip };
