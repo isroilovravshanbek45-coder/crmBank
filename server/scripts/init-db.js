@@ -85,7 +85,7 @@ const initDB = async () => {
     await client.query(`
       ALTER TABLE clients ADD COLUMN IF NOT EXISTS archived BOOLEAN DEFAULT false;
     `);
-    console.log('✅ summa ustuni NUMERIC(20,2) ga yangilandi, archived ustuni qo\\'shildi');
+    console.log("✅ summa ustuni NUMERIC(20,2) ga yangilandi, archived ustuni qo'shildi");
 
     // ===== INDEXES =====
     const indexes = [
