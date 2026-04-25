@@ -372,13 +372,14 @@ const AllClients = () => {
                   <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Summa</th>
                   <th className="px-6 py-4 text-center text-xs font-bold text-gray-700 uppercase tracking-wider">Operator</th>
                   <th className="px-6 py-4 text-center text-xs font-bold text-gray-700 uppercase tracking-wider">Status</th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Izoh</th>
                   <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Sana</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {filteredClients.length === 0 ? (
                   <tr>
-                    <td colSpan="9" className="px-6 py-16 text-center">
+                    <td colSpan="10" className="px-6 py-16 text-center">
                       <div className="flex flex-col items-center gap-3">
                         <div className="w-20 h-20 rounded-full bg-gray-100 flex items-center justify-center">
                           <svg className="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -435,6 +436,9 @@ const AllClients = () => {
                             Arxivlangan
                           </span>
                         )}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-600 max-w-xs truncate" title={client.comment}>
+                        {client.comment || '-'}
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-600 whitespace-nowrap">
                         {client.createdAt
